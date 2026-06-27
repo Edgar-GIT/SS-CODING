@@ -44,4 +44,21 @@ func ClearTerminal(){
 	cmd.Run()
 }
 
+// EnterAltScreen switches to the terminal alternate buffer so live bot
+// output does not overwrite the main menu screen.
+func EnterAltScreen() {
+	if runtime.GOOS == "windows" {
+		ClearTerminal()
+		return
+	}
+	fmt.Print("\033[?1049h\033[H\033[2J")
+}
+
+// LeaveAltScreen restores the main terminal buffer.
+func LeaveAltScreen() {
+	if runtime.GOOS == "windows" {
+		return
+	}
+	fmt.Print("\033[?1049l")
+}
 

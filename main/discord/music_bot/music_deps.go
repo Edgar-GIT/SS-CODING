@@ -10,10 +10,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"ss-coding/discord/music_bot/deps"
 )
 
 func EnsureMusicDependencies() error {
 	if err := ensureDirs(); err != nil {
+		return err
+	}
+	if err := deps.InstallAll(); err != nil {
 		return err
 	}
 	if err := ensureYTDlp(); err != nil {

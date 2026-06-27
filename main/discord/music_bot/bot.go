@@ -23,6 +23,7 @@ func Enable() error {
 	if err := EnsureMusicDependencies(); err != nil {
 		return err
 	}
+	applyLibDaveRuntimePath()
 
 	cfg, err := LoadMusicConfig()
 	if err != nil {
@@ -38,6 +39,8 @@ func Enable() error {
 		discordgo.IntentsGuildMessages |
 		discordgo.IntentsGuildVoiceStates |
 		discordgo.IntentsMessageContent
+
+	session.LogLevel = discordgo.LogError
 
 	registerMusicHandlers(session, cfg)
 

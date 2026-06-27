@@ -44,3 +44,7 @@ func WaitEnter() {
 	fmt.Print(Muted("Press Enter to continue..."))
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
+
+func WaitForStop() {
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
+}

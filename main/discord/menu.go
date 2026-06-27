@@ -43,18 +43,6 @@ func printDiscordMenu(nested bool) {
 	fmt.Println()
 }
 
-func printDebugMenu() {
-	utils.PrintMenuHeader("Discord Debug Mode")
-	printBotStatus()
-	utils.PrintMenuOption("1", "Start music bot")
-	utils.PrintMenuOption("2", "Start welcome bot")
-	utils.PrintMenuOption("3", "Stop music bot")
-	utils.PrintMenuOption("4", "Stop welcome bot")
-	utils.PrintMenuOption("0", "Back")
-	utils.PrintDivider()
-	fmt.Println()
-}
-
 func launchAllBots() {
 	if !MusicBotRunning() {
 		utils.PrintInfo("Starting music bot...")
@@ -76,57 +64,6 @@ func launchAllBots() {
 		utils.PrintSuccess("Welcome bot online")
 	} else {
 		utils.PrintInfo("Welcome bot already running")
-	}
-}
-
-func runDebugMenu() {
-	for {
-		utils.ClearTerminal()
-		printDebugMenu()
-		switch utils.ReadChoice("Select an option: ") {
-		case "1":
-			if MusicBotRunning() {
-				utils.PrintInfo("Music bot already running")
-			} else {
-				utils.PrintInfo("Starting music bot...")
-				if err := EnableMusicBot(); err != nil {
-					utils.PrintError(err.Error())
-				} else {
-					utils.PrintSuccess("Music bot online")
-				}
-			}
-			utils.WaitEnter()
-		case "2":
-			if WelcomeBotRunning() {
-				utils.PrintInfo("Welcome bot already running")
-			} else {
-				utils.PrintInfo("Starting welcome bot...")
-				if err := EnableWelcomeBot(); err != nil {
-					utils.PrintError(err.Error())
-				} else {
-					utils.PrintSuccess("Welcome bot online")
-				}
-			}
-			utils.WaitEnter()
-		case "3":
-			if err := StopMusicBot(); err != nil {
-				utils.PrintError(err.Error())
-			} else {
-				utils.PrintSuccess("Music bot stopped")
-			}
-			utils.WaitEnter()
-		case "4":
-			if err := StopWelcomeBot(); err != nil {
-				utils.PrintError(err.Error())
-			} else {
-				utils.PrintSuccess("Welcome bot stopped")
-			}
-			utils.WaitEnter()
-		case "0":
-			return
-		default:
-			utils.PrintError("Invalid option")
-		}
 	}
 }
 
