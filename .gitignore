@@ -1,6 +1,73 @@
+# Environment
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Editors & agents
 .codex
 .vscode
+!.vscode/extensions.json
+.idea
 .aider
-.env
 .agents
+*.swp
+*.swo
+*~
 
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin/
+/dist/
+
+# Node / frontend
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+bun.lockb
+
+# Build output
+dist/
+dist-ssr/
+.output/
+.vinxi/
+.nitro/
+.tanstack/
+build/
+*.tsbuildinfo
+
+# Logs & caches
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.eslintcache
+.cache/
+.parcel-cache/
+.turbo/
+.vite/
+
+# Cloudflare / Wrangler
+.wrangler/
+
+# Local overrides
+*.local
+
+# Coverage
+coverage/
+.nyc_output/
