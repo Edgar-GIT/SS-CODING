@@ -20,7 +20,13 @@ func main() {
 			runDebugMode()
 		case choiceRun:
 			runWebsite()
+		case choiceStop:
+			runStopWebsite()
 		case choiceExit:
+			if utils.DevServerRunning() {
+				utils.PrintInfo("Stopping server before exit...")
+				_ = utils.StopDevServer()
+			}
 			utils.PrintInfo("Goodbye")
 			return
 		default:

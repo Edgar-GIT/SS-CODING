@@ -2,12 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"ss-coding/utils"
 )
-
-const defaultDevURL = "http://localhost:3000"
 
 func runDebugMode() {
 	dir, err := utils.WebAppDir()
@@ -17,14 +14,24 @@ func runDebugMode() {
 		return
 	}
 
+	if utils.DevServerRunning() {
+		utils.PrintError("Server already running — use Stop website to shut it down")
+		utils.WaitEnter()
+		return
+	}
+
 	utils.PrintInfo("Starting debug server with live reload")
 	utils.PrintInfo("Edit source files — the browser refreshes automatically")
-	utils.PrintInfo("Press Ctrl+C to stop")
+	utils.PrintInfo("Use Stop website from the menu when you are done")
 	fmt.Println()
 
-	if err := utils.RunInteractive(dir, "bun", "run", "dev"); err != nil {
-		utils.PrintError("Debug server stopped")
+	if err := utils.StartDevServer(dir, false); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
 	}
+
+	utils.PrintSuccess(fmt.Sprintf("Debug server running at %s", utils.DevServerURL))
 	utils.WaitEnter()
 }
 
@@ -36,17 +43,44 @@ func runWebsite() {
 		return
 	}
 
-	utils.PrintInfo("Starting local server...")
-	go func() {
-		time.Sleep(2 * time.Second)
-		if err := utils.OpenBrowser(defaultDevURL); err != nil {
-			utils.PrintError(fmt.Sprintf("Could not open browser: %v", err))
-			utils.PrintInfo(fmt.Sprintf("Open manually: %s", defaultDevURL))
-		}
-	}()
-
-	if err := utils.RunInteractive(dir, "bun", "run", "dev"); err != nil {
-		utils.PrintError("Server stopped")
+	if utils.DevServerRunning() {
+		utils.PrintError("Server already running — use Stop website to shut it down")
+		utils.WaitEnter()
+		return
 	}
+
+	if err := utils.EnsureDependencies(dir); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
+	}
+
+	utils.PrintInfo("Starting local server...")
+
+	if err := utils.StartDevServer(dir, true); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
+	}
+
+	utils.PrintSuccess(fmt.Sprintf("Website running at %s", utils.DevServerURL))
+	utils.WaitEnter()
+}
+
+func runStopWebsite() {
+	if !utils.DevServerRunning() {
+		utils.PrintError("No dev server running")
+		utils.WaitEnter()
+		return
+	}
+
+	utils.PrintInfo("Stopping server...")
+	if err := utils.StopDevServer(); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
+	}
+
+	utils.PrintSuccess("Server stopped")
 	utils.WaitEnter()
 }
