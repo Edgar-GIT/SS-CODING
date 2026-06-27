@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cartridge-gg/discordgo"
+	"github.com/bwmarrin/discordgo"
 )
 
 var (
@@ -23,7 +23,6 @@ func Enable() error {
 	if err := EnsureMusicDependencies(); err != nil {
 		return err
 	}
-	applyLibDaveRuntimePath()
 
 	cfg, err := LoadMusicConfig()
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cartridge-gg/discordgo"
+	"github.com/bwmarrin/discordgo"
 )
 
 type pendingTrack struct {
@@ -401,8 +401,9 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 	gp := getPlayer(vs.GuildID)
 	gp.mu.Lock()
 	vc := gp.vc
+	voiceChannelID := gp.voiceChannelID
 	gp.mu.Unlock()
-	if vc == nil || vc.ChannelID != vs.ChannelID {
+	if vc == nil || voiceChannelID != vs.ChannelID {
 		return
 	}
 
@@ -412,7 +413,7 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 		return
 	}
 	for _, state := range guild.VoiceStates {
-		if state.ChannelID == vc.ChannelID && state.UserID != botUserID {
+		if state.ChannelID == voiceChannelID && state.UserID != botUserID {
 			members++
 		}
 	}
@@ -425,6 +426,7 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 		gp := getPlayer(guildID)
 		gp.mu.Lock()
 		vc := gp.vc
+		voiceChannelID := gp.voiceChannelID
 		gp.mu.Unlock()
 		if vc == nil {
 			return
@@ -435,7 +437,7 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 			return
 		}
 		for _, state := range guild.VoiceStates {
-			if state.ChannelID == vc.ChannelID && state.UserID != botUserID {
+			if state.ChannelID == voiceChannelID && state.UserID != botUserID {
 				alone++
 			}
 		}

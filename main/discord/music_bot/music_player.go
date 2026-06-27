@@ -1,13 +1,14 @@
 package musicbot
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/cartridge-gg/discordgo"
+	"github.com/bwmarrin/discordgo"
 	"github.com/jonas747/dca"
 )
 
@@ -19,8 +20,9 @@ type GuildPlayer struct {
 	looping        bool
 	volume         float64
 	page           int
-	vc             *discordgo.VoiceConnection
-	panelChannelID string
+	vc              *discordgo.VoiceConnection
+	voiceChannelID  string
+	panelChannelID  string
 	panelMessageID string
 	guildID        string
 	playing        bool
@@ -151,21 +153,29 @@ func (gp *GuildPlayer) pageCount(queueLen int) int {
 
 func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) error {
 	gp.mu.Lock()
-	if gp.vc != nil && gp.vc.Ready {
-		if gp.vc.ChannelID == channelID {
+	if gp.vc != nil && gp.vc.Status == discordgo.VoiceConnectionStatusReady {
+		if gp.voiceChannelID == channelID {
 			gp.mu.Unlock()
 			return nil
 		}
-		gp.vc.Disconnect()
+		vc := gp.vc
+		gp.mu.Unlock()
+		_ = vc.Disconnect(context.Background())
+		gp.mu.Lock()
+		gp.vc = nil
+		gp.voiceChannelID = ""
 	}
 	gp.mu.Unlock()
 
-	vc, err := session.ChannelVoiceJoin(gp.guildID, channelID, false, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	vc, err := session.ChannelVoiceJoin(ctx, gp.guildID, channelID, false, false)
 	if err != nil {
 		return err
 	}
 	gp.mu.Lock()
 	gp.vc = vc
+	gp.voiceChannelID = channelID
 	gp.mu.Unlock()
 	return nil
 }
@@ -174,10 +184,11 @@ func (gp *GuildPlayer) disconnect() {
 	gp.mu.Lock()
 	vc := gp.vc
 	gp.vc = nil
+	gp.voiceChannelID = ""
 	gp.playing = false
 	gp.mu.Unlock()
-	if vc != nil {
-		vc.Disconnect()
+	if vc != nil && vc.Status != discordgo.VoiceConnectionStatusDead {
+		_ = vc.Disconnect(context.Background())
 	}
 }
 
@@ -260,7 +271,8 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		gp.mu.Unlock()
 	}
 
-	if vc == nil || !vc.Ready {
+	if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
+		sendPlain(session, channelID, "❌ Voice connection not ready.")
 		return
 	}
 

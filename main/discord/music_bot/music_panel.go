@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cartridge-gg/discordgo"
+	"github.com/bwmarrin/discordgo"
 )
 
 const panelColor = 0x57F287
