@@ -1,53 +1,41 @@
-const DIGITS = "0123456789";
+const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-// Each "reel" is a vertical strip that scrolls infinitely upward.
-// We don't show a real number — just the illusion of an ever-growing count.
-const reels = [
-  { width: "ch", speed: 1.1 },
-  { width: "ch", speed: 1.4 },
-  { width: "ch", speed: 0.9 },
-  { width: "0.4ch", isComma: true },
-  { width: "ch", speed: 1.7 },
-  { width: "ch", speed: 1.2 },
-  { width: "ch", speed: 1.5 },
-];
+const REEL_SPEEDS = [0.07, 0.05, 0.09, 0.06, 0.08, 0.04, 0.07, 0.05];
+
+function Reel({ speed }: { speed: number }) {
+  return (
+    <span className="relative overflow-hidden inline-block w-[0.62em] h-[1em] align-top">
+      <span
+        className="absolute left-0 top-0 flex flex-col animate-slot-roll"
+        style={{ animationDuration: `${speed}s` }}
+      >
+        {DIGITS.map((digit, idx) => (
+          <span
+            key={idx}
+            className="h-[1em] leading-none flex items-center justify-center text-gradient-cosmic"
+          >
+            {digit}
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
 
 export function SlotCounter() {
   return (
     <div
       aria-label="Programmers joining every second"
-      className="font-display text-2xl md:text-3xl font-bold text-gradient-cosmic flex items-center leading-none"
-      style={{ height: "1.2em" }}
+      className="font-display text-2xl md:text-3xl font-bold flex items-center leading-none tabular-nums min-h-[1.15em]"
     >
-      {reels.map((r, i) =>
-        r.isComma ? (
-          <span key={i} className="px-[1px]">,</span>
-        ) : (
-          <span
-            key={i}
-            className="relative overflow-hidden inline-block"
-            style={{ width: "1ch", height: "1em" }}
-          >
-            <span
-              className="absolute left-0 top-0 flex flex-col"
-              style={{
-                animation: `slot-roll ${r.speed}s linear infinite`,
-              }}
-            >
-              {(DIGITS + DIGITS).split("").map((d, idx) => (
-                <span
-                  key={idx}
-                  style={{ height: "1em", lineHeight: "1em" }}
-                  className="block text-center"
-                >
-                  {d}
-                </span>
-              ))}
-            </span>
-          </span>
-        ),
-      )}
-      <span className="ml-1">+</span>
+      {REEL_SPEEDS.slice(0, 3).map((speed, i) => (
+        <Reel key={`a-${i}`} speed={speed} />
+      ))}
+      <span className="text-gradient-cosmic w-[0.3em] text-center">,</span>
+      {REEL_SPEEDS.slice(3).map((speed, i) => (
+        <Reel key={`b-${i}`} speed={speed} />
+      ))}
+      <span className="text-gradient-cosmic ml-0.5">+</span>
     </div>
   );
 }

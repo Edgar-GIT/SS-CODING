@@ -75,7 +75,7 @@ function Home() {
         <div className="absolute inset-0 pointer-events-none"
              style={{ background: "var(--gradient-nebula)" }} />
 
-        <div className="relative mx-auto max-w-7xl px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative mx-auto max-w-7xl px-6 pt-6 pb-16 lg:pt-8 lg:pb-24 grid lg:grid-cols-2 gap-8 lg:gap-10 items-start">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border/60 bg-secondary/40 backdrop-blur text-xs font-medium text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-accent animate-pulse-glow" />
@@ -135,12 +135,12 @@ function Home() {
           </div>
 
           {/* HERO IMAGE */}
-          <div className="relative flex justify-center items-center">
-            <div className="absolute inset-0 bg-cosmic opacity-30 blur-3xl rounded-full animate-pulse-glow" />
+          <div className="relative flex justify-center lg:justify-start items-start -mt-2 lg:-mt-6 lg:-ml-8 xl:-ml-12">
+            <div className="absolute top-1/4 left-1/4 w-3/4 h-3/4 bg-cosmic opacity-30 blur-3xl rounded-full animate-pulse-glow" />
             <img
               src={homeLogo}
               alt="SS Coding"
-              className="relative w-full max-w-[560px] animate-float-slow drop-shadow-[0_0_60px_oklch(0.55_0.25_285_/_0.6)]"
+              className="relative w-full max-w-[480px] lg:max-w-[520px] animate-float-slow drop-shadow-[0_0_60px_oklch(0.55_0.25_285_/_0.6)] translate-x-[-4%] lg:translate-x-[-8%] -translate-y-2 lg:-translate-y-6"
             />
           </div>
         </div>

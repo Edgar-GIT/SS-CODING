@@ -146,6 +146,19 @@
   to { transform: translateY(-50%); }
 }
 
+@keyframes brand-shimmer {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 8px oklch(0.55 0.25 285 / 0.4)); }
+  50% { filter: brightness(1.2) drop-shadow(0 0 16px oklch(0.7 0.22 240 / 0.7)); }
+}
+
+@utility animate-slot-roll {
+  animation: slot-roll linear infinite;
+}
+
+@utility animate-brand-shimmer {
+  animation: brand-shimmer 3s ease-in-out infinite;
+}
+
 @utility animate-float-slow {
   animation: float-slow 6s ease-in-out infinite;
 }
