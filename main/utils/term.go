@@ -24,7 +24,7 @@ func PrintBanner(){
                                                                                     
 
 `
-	fmt.Print(BoldYellow.Apply(banner))
+	fmt.Print(HiGold.Apply(banner))
 }
 
 func ClearTerminal(){
@@ -43,3 +43,5 @@ func ClearTerminal(){
 	cmd.Stdout = os.Stdout
 	cmd.Run()
 }
+
+

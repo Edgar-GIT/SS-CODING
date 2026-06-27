@@ -55,6 +55,7 @@ const (
     HiPurple  Color = "\033[0;95m"
     HiCyan    Color = "\033[0;96m"
     HiWhite   Color = "\033[0;97m"
+    HiGold    Color = "\033[38;5;220m"
 
     // Bold High Intensity
     BoldHiBlack   Color = "\033[1;90m"
