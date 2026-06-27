@@ -162,7 +162,9 @@ func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) err
 		}
 		vc := gp.vc
 		gp.mu.Unlock()
-		_ = vc.Disconnect(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = vc.Disconnect(ctx)
+		cancel()
 		gp.mu.Lock()
 		gp.vc = nil
 		gp.voiceChannelID = ""
@@ -192,7 +194,9 @@ func (gp *GuildPlayer) disconnect() {
 	gp.playing = false
 	gp.mu.Unlock()
 	if vc != nil && vc.Status != discordgo.VoiceConnectionStatusDead {
-		_ = vc.Disconnect(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = vc.Disconnect(ctx)
+		cancel()
 	}
 }
 

@@ -63,13 +63,19 @@ func Stop() (string, error) {
 		return "", fmt.Errorf("music bot is not running")
 	}
 
+	botLog("Music bot stopping...")
+
 	playersMu.Lock()
-	for guildID := range players {
-		getPlayer(guildID).stopAll(musicSession, "")
+	active := make([]*GuildPlayer, 0, len(players))
+	for _, gp := range players {
+		active = append(active, gp)
 	}
 	playersMu.Unlock()
 
-	botLog("Music bot stopping...")
+	for _, gp := range active {
+		gp.stopAll(musicSession, "")
+	}
+
 	if err := musicSession.Close(); err != nil {
 		logs := stopLogCapture()
 		return logs, err
