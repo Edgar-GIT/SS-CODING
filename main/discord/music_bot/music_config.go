@@ -72,16 +72,21 @@ func ensureDirs() error {
 
 func loadEnv() error {
 	oncePaths.Do(initPaths)
-	root, _ := moduleRoot()
-	candidates := []string{
-		filepath.Join(root, ".env"),
-		filepath.Join(baseDir, ".env"),
-		".env",
+
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
 	}
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
-			return godotenv.Load(path)
+	for {
+		envPath := filepath.Join(dir, ".env")
+		if _, err := os.Stat(envPath); err == nil {
+			return godotenv.Load(envPath)
 		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
 	return nil
 }
