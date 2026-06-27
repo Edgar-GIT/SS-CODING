@@ -24,6 +24,8 @@ func main() {
 			runStopWebsite()
 		case choiceTransporter:
 			runTransporter()
+		case choiceDiscord:
+			runDiscordMenu()
 		case choiceExit:
 			stopTransporter()
 			if utils.DevServerRunning() {

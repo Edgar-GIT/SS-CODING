@@ -71,3 +71,10 @@ lerna-debug.log*
 # Coverage
 coverage/
 .nyc_output/
+
+# Discord bot runtime
+main/discord/music_bot/ffmpeg/
+main/discord/music_bot/bin/
+main/discord/music_bot/music/
+main/discord/music_bot/playlists/
+main/discord/music_bot/temp_music/

@@ -14,6 +14,7 @@ const (
 	choiceRun         = "4"
 	choiceStop        = "5"
 	choiceTransporter = "6"
+	choiceDiscord     = "7"
 	choiceExit        = "0"
 )
 
@@ -34,6 +35,7 @@ func printMenu() {
 	utils.PrintMenuOption(choiceRun, "Run website on localhost")
 	utils.PrintMenuOption(choiceStop, "Stop website")
 	utils.PrintMenuOption(choiceTransporter, "Transporter — share via ngrok")
+	utils.PrintMenuOption(choiceDiscord, "Manage discord bots")
 	utils.PrintMenuOption(choiceExit, "Exit")
 	utils.PrintDivider()
 	fmt.Println()
