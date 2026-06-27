@@ -1,4 +1,4 @@
-<h1>SS-Coding => The Champions guide to programming</h1>
+<h1 align="center" >SS-Coding, the Champions guide to programming</h1>
 
 ---
 
