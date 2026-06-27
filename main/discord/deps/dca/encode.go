@@ -207,33 +207,51 @@ func (e *EncodeSession) run() {
 		vbrStr = "off"
 	}
 
-	// Launch ffmpeg with a variety of different fruits and goodies mixed togheter
+	isStream := strings.HasPrefix(inFile, "http://") || strings.HasPrefix(inFile, "https://")
+
 	args := []string{
-		"-stats",
+		"-nostdin",
+		"-hide_banner",
+		"-loglevel", "error",
 		"-i", inFile,
-		"-reconnect", "1",
-		"-reconnect_at_eof", "1",
-		"-reconnect_streamed", "1",
-		"-reconnect_delay_max", "2",
+	}
+	if isStream {
+		args = append(args,
+			"-reconnect", "1",
+			"-reconnect_at_eof", "1",
+			"-reconnect_streamed", "1",
+			"-reconnect_delay_max", "2",
+		)
+	}
+	args = append(args,
 		"-map", "0:a",
 		"-acodec", "libopus",
 		"-f", "ogg",
 		"-vbr", vbrStr,
 		"-compression_level", strconv.Itoa(e.options.CompressionLevel),
-		"-vol", strconv.Itoa(e.options.Volume),
 		"-ar", strconv.Itoa(e.options.FrameRate),
 		"-ac", strconv.Itoa(e.options.Channels),
-		"-b:a", strconv.Itoa(e.options.Bitrate * 1000),
+		"-b:a", strconv.Itoa(e.options.Bitrate*1000),
 		"-application", string(e.options.Application),
 		"-frame_duration", strconv.Itoa(e.options.FrameDuration),
 		"-packet_loss", strconv.Itoa(e.options.PacketLoss),
 		"-threads", strconv.Itoa(e.options.Threads),
-		"-ss", strconv.Itoa(e.options.StartTime),
+	)
+	if e.options.StartTime > 0 {
+		args = append(args, "-ss", strconv.Itoa(e.options.StartTime))
 	}
 
-	if e.options.AudioFilter != "" {
-		// Lit af
-		args = append(args, "-af", e.options.AudioFilter)
+	audioFilter := e.options.AudioFilter
+	if e.options.Volume != 256 {
+		vol := fmt.Sprintf("volume=%.4f", float64(e.options.Volume)/256.0)
+		if audioFilter != "" {
+			audioFilter = vol + "," + audioFilter
+		} else {
+			audioFilter = vol
+		}
+	}
+	if audioFilter != "" {
+		args = append(args, "-af", audioFilter)
 	}
 
 	args = append(args, "pipe:1")

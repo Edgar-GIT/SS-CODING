@@ -34,6 +34,7 @@ func ClearTerminal(){
 	case "windows":
 		cmd = exec.Command("cmd", "/c", "cls")
 	case "darwin", "linux":
+		fmt.Print("\033[?1049l")
 		cmd = exec.Command("clear")
 	default:
 		fmt.Println("Unsupported platform")

@@ -1,4 +1,4 @@
-package musicbot
+package deps
 
 import (
 	"archive/zip"
@@ -10,72 +10,43 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"ss-coding/discord/music_bot/deps"
 )
 
-func EnsureMusicDependencies() error {
-	if err := ensureDirs(); err != nil {
-		return err
-	}
-	if err := deps.InstallAll(); err != nil {
+// InstallAll creates temp_music layout and installs yt-dlp + ffmpeg if missing.
+func InstallAll() error {
+	if err := EnsureDirs(); err != nil {
 		return err
 	}
 	if err := ensureYTDlp(); err != nil {
 		return err
 	}
-	if _, err := ffmpegPath(); err != nil {
+	if _, err := FFmpegPath(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func ffmpegPath() (string, error) {
+func FFmpegPath() (string, error) {
 	if override := os.Getenv("FFMPEG_PATH"); override != "" {
 		if _, err := os.Stat(override); err == nil {
 			return override, nil
 		}
 	}
-	if path := bundledFFmpegPath(); path != "" {
+	if path := findFFmpeg(); path != "" {
 		return path, nil
-	}
-	if path, err := exec.LookPath("ffmpeg"); err == nil {
-		return path, nil
-	}
-	local := localFFmpegName()
-	if _, err := os.Stat(local); err == nil {
-		return local, nil
 	}
 	if err := downloadFFmpeg(); err != nil {
 		return "", err
 	}
+	local := localFFmpegBinary()
 	if _, err := os.Stat(local); err != nil {
 		return "", fmt.Errorf("ffmpeg not available after install")
 	}
 	return local, nil
 }
 
-func bundledFFmpegPath() string {
-	oncePaths.Do(initPaths)
-	name := "ffmpeg"
-	if runtime.GOOS == "windows" {
-		name += ".exe"
-	}
-	candidates := []string{
-		filepath.Join(tempMusicDir, "ffmpeg", "ffmpeg-8.0-full_build", "bin", name),
-	}
-	matches, _ := filepath.Glob(filepath.Join(tempMusicDir, "ffmpeg", "*", "bin", name))
-	candidates = append(candidates, matches...)
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
-	}
-	return ""
-}
-
-func ytDlpPath() (string, error) {
-	local := filepath.Join(binDir, ytDlpBinaryName())
+func YTDlpPath() (string, error) {
+	local := localYTDlpBinary()
 	if _, err := os.Stat(local); err == nil {
 		return local, nil
 	}
@@ -94,23 +65,35 @@ func ytDlpPath() (string, error) {
 	return local, nil
 }
 
-func localFFmpegName() string {
+func findFFmpeg() string {
+	if path, err := exec.LookPath("ffmpeg"); err == nil {
+		return path
+	}
+	local := localFFmpegBinary()
+	if _, err := os.Stat(local); err == nil {
+		return local
+	}
+	return ""
+}
+
+func localFFmpegBinary() string {
 	name := "ffmpeg"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
-	return filepath.Join(ffmpegDir, name)
+	return toolPath(name)
 }
 
-func ytDlpBinaryName() string {
+func localYTDlpBinary() string {
+	name := "yt-dlp"
 	if runtime.GOOS == "windows" {
-		return "yt-dlp.exe"
+		name += ".exe"
 	}
-	return "yt-dlp"
+	return toolPath(name)
 }
 
 func ensureYTDlp() error {
-	_, err := ytDlpPath()
+	_, err := YTDlpPath()
 	return err
 }
 
@@ -119,8 +102,7 @@ func downloadYtDlp() error {
 	if runtime.GOOS == "windows" {
 		url += ".exe"
 	}
-	dest := filepath.Join(binDir, ytDlpBinaryName())
-	return downloadFile(url, dest, 0o755)
+	return downloadFile(url, localYTDlpBinary(), 0o755)
 }
 
 func downloadFFmpeg() error {
@@ -138,7 +120,7 @@ func downloadFFmpeg() error {
 
 func installFFmpegWindows() error {
 	url := "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-	zipPath := filepath.Join(ffmpegDir, "ffmpeg.zip")
+	zipPath := toolPath("ffmpeg.zip")
 	if err := downloadFile(url, zipPath, 0o644); err != nil {
 		return err
 	}
@@ -150,9 +132,10 @@ func installFFmpegWindows() error {
 	}
 	defer reader.Close()
 
+	dest := localFFmpegBinary()
 	for _, file := range reader.File {
 		if strings.HasSuffix(file.Name, "/bin/ffmpeg.exe") {
-			return extractZipFile(file, localFFmpegName())
+			return extractZipFile(file, dest)
 		}
 	}
 	return fmt.Errorf("ffmpeg.exe not found in windows archive")
@@ -160,23 +143,30 @@ func installFFmpegWindows() error {
 
 func installFFmpegLinux() error {
 	url := "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
-	archivePath := filepath.Join(ffmpegDir, "ffmpeg.tar.xz")
+	archivePath := toolPath("ffmpeg.tar.xz")
 	if err := downloadFile(url, archivePath, 0o644); err != nil {
 		return err
 	}
-	cmd := exec.Command("tar", "-xJf", archivePath, "-C", ffmpegDir)
+	defer os.Remove(archivePath)
+
+	extractDir := toolPath("ffmpeg-extract")
+	if err := os.MkdirAll(extractDir, 0o755); err != nil {
+		return err
+	}
+	defer os.RemoveAll(extractDir)
+
+	cmd := exec.Command("tar", "-xJf", archivePath, "-C", extractDir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	_ = os.Remove(archivePath)
 
-	matches, _ := filepath.Glob(filepath.Join(ffmpegDir, "ffmpeg-*-amd64-static", "ffmpeg"))
+	matches, _ := filepath.Glob(filepath.Join(extractDir, "ffmpeg-*-amd64-static", "ffmpeg"))
 	if len(matches) == 0 {
 		return fmt.Errorf("ffmpeg binary not found after extraction")
 	}
-	return os.Rename(matches[0], localFFmpegName())
+	return os.Rename(matches[0], localFFmpegBinary())
 }
 
 func installFFmpegDarwin() error {

@@ -2,6 +2,7 @@ package musicbot
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jonas747/dca"
+	"ss-coding/discord/deps"
 )
 
 type GuildPlayer struct {
@@ -173,8 +175,8 @@ func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) err
 	if err != nil {
 		return err
 	}
-	// Voice reports Ready before the DAVE sender key is derived; wait briefly.
-	time.Sleep(4 * time.Second)
+	// DAVE sender key is derived after the voice websocket handshake completes.
+	time.Sleep(3 * time.Second)
 	gp.mu.Lock()
 	gp.vc = vc
 	gp.voiceChannelID = channelID
@@ -307,7 +309,7 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 		return io.ErrUnexpectedEOF
 	}
 
-	ffmpeg, err := ffmpegPath()
+	ffmpeg, err := deps.FFmpegPath()
 	if err != nil {
 		return err
 	}
@@ -331,6 +333,7 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 	defer vc.Speaking(false)
 
 	stop := gp.stopPlayback
+	framesSent := 0
 	for {
 		select {
 		case <-stop:
@@ -356,7 +359,16 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 		frame, err := session.OpusFrame()
 		if err != nil {
 			if err == io.EOF {
-				botLog("Finished track: %s", track.Title)
+				if framesSent == 0 {
+					if msg := session.FFMPEGMessages(); msg != "" {
+						botLog("ffmpeg output:\n%s", msg)
+					}
+					if encErr := session.Error(); encErr != nil {
+						botLog("encode error: %v", encErr)
+					}
+					return fmt.Errorf("no audio frames encoded")
+				}
+				botLog("Finished track: %s (%d frames)", track.Title, framesSent)
 				return nil
 			}
 			if msg := session.FFMPEGMessages(); msg != "" {
@@ -366,8 +378,9 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 			return err
 		}
 		if frame == nil {
-			return nil
+			return fmt.Errorf("empty opus frame")
 		}
+		framesSent++
 		select {
 		case vc.OpusSend <- frame:
 		case <-time.After(5 * time.Second):

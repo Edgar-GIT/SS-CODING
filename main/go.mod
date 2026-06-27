@@ -20,6 +20,6 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 )
 
-replace github.com/jonas747/dca => ./discord/music_bot/dca
+replace github.com/jonas747/dca => ./discord/deps/dca
 
 replace github.com/bwmarrin/discordgo => github.com/yeongaori/discordgo-fork v0.0.0-20260324114955-7a1c64e5eb96

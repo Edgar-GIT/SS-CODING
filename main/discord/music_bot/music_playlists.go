@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+
+	"ss-coding/discord/deps"
 )
 
 type UserPlaylist struct {
@@ -12,12 +13,8 @@ type UserPlaylist struct {
 	Songs []string `json:"songs"`
 }
 
-func playlistPath(userID string) string {
-	return filepath.Join(playlistDir, userID+".json")
-}
-
 func loadUserPlaylist(userID string) (*UserPlaylist, error) {
-	path := playlistPath(userID)
+	path := deps.PlaylistPath(userID)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -33,14 +30,14 @@ func loadUserPlaylist(userID string) (*UserPlaylist, error) {
 }
 
 func saveUserPlaylist(userID string, playlist *UserPlaylist) error {
-	if err := ensureDirs(); err != nil {
+	if err := deps.EnsureDirs(); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(playlist, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(playlistPath(userID), data, 0o644)
+	return os.WriteFile(deps.PlaylistPath(userID), data, 0o644)
 }
 
 func createUserPlaylist(userID, name string) error {

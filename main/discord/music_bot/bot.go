@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
+	"ss-coding/discord/deps"
 )
 
 var (
@@ -20,7 +21,7 @@ func Enable() error {
 		return fmt.Errorf("music bot already running")
 	}
 
-	if err := EnsureMusicDependencies(); err != nil {
+	if err := deps.InstallAll(); err != nil {
 		return err
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"ss-coding/discord/deps"
 )
 
 type Track struct {
@@ -33,11 +34,11 @@ func searchSoundCloud(query string) (*Track, error) {
 }
 
 func extractStream(target, mode string) (*Track, error) {
-	ytdlp, err := ytDlpPath()
+	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
 	}
-	ffmpeg, err := ffmpegPath()
+	ffmpeg, err := deps.FFmpegPath()
 	if err != nil {
 		return nil, err
 	}
@@ -78,16 +79,16 @@ func extractStream(target, mode string) (*Track, error) {
 }
 
 func downloadYouTube(query string) (*Track, error) {
-	ytdlp, err := ytDlpPath()
+	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
 	}
-	ffmpeg, err := ffmpegPath()
+	ffmpeg, err := deps.FFmpegPath()
 	if err != nil {
 		return nil, err
 	}
 
-	filePath := filepath.Join(musicDir, fmt.Sprintf("temp_%s.mp3", uuid.NewString()))
+	filePath := filepath.Join(deps.DownloadsDir(), fmt.Sprintf("temp_%s.mp3", uuid.NewString()))
 	args := []string{
 		"--quiet", "--no-warnings",
 		"--ffmpeg-location", filepath.Dir(ffmpeg),

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"ss-coding/discord/music_bot/deps"
+	"ss-coding/discord/deps"
 )
 
 func main() {

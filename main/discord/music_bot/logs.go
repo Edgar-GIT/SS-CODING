@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 )
@@ -36,7 +35,6 @@ func (b *logBuffer) Reset() {
 
 var (
 	sessionLogs logBuffer
-	logMirror   io.Writer = os.Stderr
 	logActive   bool
 	logMu       sync.Mutex
 )
@@ -46,14 +44,14 @@ func startLogCapture() {
 	defer logMu.Unlock()
 	sessionLogs.Reset()
 	logActive = true
-	log.SetOutput(io.MultiWriter(&sessionLogs, logMirror))
+	log.SetOutput(&sessionLogs)
 }
 
 func stopLogCapture() string {
 	logMu.Lock()
 	defer logMu.Unlock()
 	if logActive {
-		log.SetOutput(logMirror)
+		log.SetOutput(io.Discard)
 		logActive = false
 	}
 	return sessionLogs.String()
@@ -69,5 +67,4 @@ func botLog(format string, args ...interface{}) {
 		line += "\n"
 	}
 	sessionLogs.Write([]byte(line))
-	logMirror.Write([]byte(line))
 }
