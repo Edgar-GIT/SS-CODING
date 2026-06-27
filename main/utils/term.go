@@ -24,7 +24,7 @@ func PrintBanner(){
                                                                                     
 
 `
-	fmt.Print(Yellow.Apply(banner))
+	fmt.Print(BoldYellow.Apply(banner))
 }
 
 func ClearTerminal(){
