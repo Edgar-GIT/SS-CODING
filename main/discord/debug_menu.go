@@ -2,6 +2,7 @@ package discord
 
 import (
 	"fmt"
+	"strings"
 
 	"ss-coding/utils"
 )
@@ -22,8 +23,8 @@ func printMusicDebugMenu() {
 		fmt.Println(utils.HiGreen.Apply("  ● Running"))
 		fmt.Println()
 	}
-	utils.PrintMenuOption("1", "Start bot (live console)")
-	utils.PrintMenuOption("2", "Stop bot")
+	utils.PrintMenuOption("1", "Start bot")
+	utils.PrintMenuOption("2", "Stop bot (show logs)")
 	utils.PrintMenuOption("0", "Back")
 	utils.PrintDivider()
 	fmt.Println()
@@ -35,59 +36,76 @@ func printWelcomeDebugMenu() {
 		fmt.Println(utils.HiGreen.Apply("  ● Running"))
 		fmt.Println()
 	}
-	utils.PrintMenuOption("1", "Start bot (live console)")
-	utils.PrintMenuOption("2", "Stop bot")
+	utils.PrintMenuOption("1", "Start bot")
+	utils.PrintMenuOption("2", "Stop bot (show logs)")
 	utils.PrintMenuOption("0", "Back")
 	utils.PrintDivider()
 	fmt.Println()
 }
 
-func runLiveBotSession(title string, running func() bool, start func() error, stop func() error) {
-	utils.EnterAltScreen()
-	defer utils.LeaveAltScreen()
+func startMusicBotDebug() {
+	if MusicBotRunning() {
+		utils.PrintInfo("Music bot already running")
+		return
+	}
+	utils.PrintInfo("Starting music bot...")
+	if err := EnableMusicBot(); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
+	}
+	utils.PrintSuccess("Music bot online")
+}
 
-	utils.PrintMenuHeader(title)
-	fmt.Println(utils.HiCyan.Apply("  Bot output below — press Enter to stop and return to menu."))
-	utils.PrintDivider()
-	fmt.Println()
+func stopMusicBotDebug() {
+	if !MusicBotRunning() {
+		utils.PrintInfo("Music bot is not running")
+		utils.WaitEnter()
+		return
+	}
 
-	if running() {
-		utils.PrintInfo("Bot already running")
-	} else {
-		utils.PrintInfo("Starting bot...")
-		if err := start(); err != nil {
-			utils.PrintError(err.Error())
-			utils.WaitEnter()
-			return
-		}
-		utils.PrintSuccess("Bot online")
+	utils.PrintInfo("Stopping music bot...")
+	logs, err := StopMusicBot()
+	utils.ClearTerminal()
+	utils.PrintMenuHeader("Music Bot — Session Logs")
+	if err != nil {
+		utils.PrintError(err.Error())
 		fmt.Println()
 	}
-
-	utils.WaitForStop()
-	if err := stop(); err != nil {
-		utils.PrintError(err.Error())
+	if strings.TrimSpace(logs) == "" {
+		fmt.Println(utils.Muted("  (no logs captured)"))
 	} else {
-		utils.PrintSuccess("Bot stopped")
+		fmt.Println(logs)
 	}
+	utils.PrintDivider()
+	utils.WaitEnter()
 }
 
-func runMusicDebugSession() {
-	runLiveBotSession(
-		"Music Bot — Live Console",
-		MusicBotRunning,
-		EnableMusicBot,
-		StopMusicBot,
-	)
+func startWelcomeBotDebug() {
+	if WelcomeBotRunning() {
+		utils.PrintInfo("Welcome bot already running")
+		return
+	}
+	utils.PrintInfo("Starting welcome bot...")
+	if err := EnableWelcomeBot(); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
+	}
+	utils.PrintSuccess("Welcome bot online")
 }
 
-func runWelcomeDebugSession() {
-	runLiveBotSession(
-		"Welcome Bot — Live Console",
-		WelcomeBotRunning,
-		EnableWelcomeBot,
-		StopWelcomeBot,
-	)
+func stopWelcomeBotDebug() {
+	if !WelcomeBotRunning() {
+		utils.PrintInfo("Welcome bot is not running")
+		utils.WaitEnter()
+		return
+	}
+	utils.PrintInfo("Stopping welcome bot...")
+	if err := StopWelcomeBot(); err != nil {
+		utils.PrintError(err.Error())
+	}
+	utils.WaitEnter()
 }
 
 func runMusicDebugMenu() {
@@ -96,14 +114,9 @@ func runMusicDebugMenu() {
 		printMusicDebugMenu()
 		switch utils.ReadChoice("Select an option: ") {
 		case "1":
-			runMusicDebugSession()
+			startMusicBotDebug()
 		case "2":
-			if err := StopMusicBot(); err != nil {
-				utils.PrintError(err.Error())
-			} else {
-				utils.PrintSuccess("Music bot stopped")
-			}
-			utils.WaitEnter()
+			stopMusicBotDebug()
 		case "0":
 			return
 		default:
@@ -118,14 +131,9 @@ func runWelcomeDebugMenu() {
 		printWelcomeDebugMenu()
 		switch utils.ReadChoice("Select an option: ") {
 		case "1":
-			runWelcomeDebugSession()
+			startWelcomeBotDebug()
 		case "2":
-			if err := StopWelcomeBot(); err != nil {
-				utils.PrintError(err.Error())
-			} else {
-				utils.PrintSuccess("Welcome bot stopped")
-			}
-			utils.WaitEnter()
+			stopWelcomeBotDebug()
 		case "0":
 			return
 		default:

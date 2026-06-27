@@ -34,7 +34,7 @@ func registerMusicHandlers(session *discordgo.Session, cfg MusicConfig) {
 
 func onReady(session *discordgo.Session, _ *discordgo.Ready) {
 	botUserID = session.State.User.ID
-	fmt.Printf("🤖 Music bot online as %s\n", session.State.User.Username)
+	botLog("🤖 Music bot online as %s", session.State.User.Username)
 }
 
 func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
@@ -443,7 +443,7 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 		}
 		if alone == 0 {
 			gp.stopAll(session, channelID)
-			fmt.Println("💤 Auto-disconnected due to inactivity.")
+			botLog("💤 Auto-disconnected due to inactivity.")
 		}
 	}(vs.GuildID, "")
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func EnableMusicBot() error  { return musicbot.Enable() }
-func StopMusicBot() error    { return musicbot.Stop() }
+func StopMusicBot() (string, error) { return musicbot.Stop() }
 func MusicBotRunning() bool  { return musicbot.Running() }
 
 func EnableWelcomeBot() error  { return welcomebot.Enable() }
@@ -14,6 +14,6 @@ func StopWelcomeBot() error    { return welcomebot.Stop() }
 func WelcomeBotRunning() bool  { return welcomebot.Running() }
 
 func StopAllBots() {
-	_ = StopMusicBot()
+	_, _ = StopMusicBot()
 	_ = StopWelcomeBot()
 }

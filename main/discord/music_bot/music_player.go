@@ -173,6 +173,8 @@ func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) err
 	if err != nil {
 		return err
 	}
+	// Voice reports Ready before the DAVE sender key is derived; wait briefly.
+	time.Sleep(4 * time.Second)
 	gp.mu.Lock()
 	gp.vc = vc
 	gp.voiceChannelID = channelID
@@ -272,11 +274,13 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 	}
 
 	if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
+		botLog("voice not ready (status=%v)", vc.Status)
 		sendPlain(session, channelID, "❌ Voice connection not ready.")
 		return
 	}
 
 	if err := gp.streamTrack(vc, track, volume); err != nil {
+		botLog("playback error for %s: %v", track.Title, err)
 		sendPlain(session, channelID, "❌ Error playing music: "+err.Error())
 	}
 
@@ -307,7 +311,10 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 	if err != nil {
 		return err
 	}
+	_ = os.Setenv("FFMPEG_PATH", ffmpeg)
 	_ = os.Setenv("PATH", filepath.Dir(ffmpeg)+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	botLog("Playing: %s (input: %s)", track.Title, input)
 
 	options := *dca.StdEncodeOptions
 	options.Volume = int(volume * 256)
@@ -315,6 +322,7 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 
 	session, err := dca.EncodeFile(input, &options)
 	if err != nil {
+		botLog("dca encode error: %v", err)
 		return err
 	}
 	defer session.Cleanup()
@@ -348,8 +356,13 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 		frame, err := session.OpusFrame()
 		if err != nil {
 			if err == io.EOF {
+				botLog("Finished track: %s", track.Title)
 				return nil
 			}
+			if msg := session.FFMPEGMessages(); msg != "" {
+				botLog("ffmpeg output:\n%s", msg)
+			}
+			botLog("opus frame error: %v", err)
 			return err
 		}
 		if frame == nil {

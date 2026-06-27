@@ -21,6 +21,14 @@ import (
 	"github.com/jonas747/ogg"
 )
 
+func ffmpegCommand(args ...string) *exec.Cmd {
+	bin := os.Getenv("FFMPEG_PATH")
+	if bin == "" {
+		bin = "ffmpeg"
+	}
+	return exec.Command(bin, args...)
+}
+
 // AudioApplication is an application profile for opus encoding
 type AudioApplication string
 
@@ -230,7 +238,7 @@ func (e *EncodeSession) run() {
 
 	args = append(args, "pipe:1")
 
-	ffmpeg := exec.Command("ffmpeg", args...)
+	ffmpeg := ffmpegCommand(args...)
 
 	// logln(ffmpeg.Args)
 
@@ -369,7 +377,7 @@ func (e *EncodeSession) writeMetadataFrame() {
 		cmdBuf.Reset()
 
 		// get cover art
-		cover := exec.Command("ffmpeg", "-loglevel", "0", "-i", e.filePath, "-f", "singlejpeg", "pipe:1")
+		cover := ffmpegCommand("-loglevel", "0", "-i", e.filePath, "-f", "singlejpeg", "pipe:1")
 		cover.Stdout = &cmdBuf
 
 		err = cover.Start()

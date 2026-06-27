@@ -39,7 +39,10 @@ func Enable() error {
 		discordgo.IntentsGuildVoiceStates |
 		discordgo.IntentsMessageContent
 
-	session.LogLevel = discordgo.LogError
+	session.LogLevel = discordgo.LogInformational
+
+	startLogCapture()
+	botLog("Music bot starting...")
 
 	registerMusicHandlers(session, cfg)
 
@@ -51,12 +54,12 @@ func Enable() error {
 	return nil
 }
 
-func Stop() error {
+func Stop() (string, error) {
 	musicMu.Lock()
 	defer musicMu.Unlock()
 
 	if musicSession == nil {
-		return fmt.Errorf("music bot is not running")
+		return "", fmt.Errorf("music bot is not running")
 	}
 
 	playersMu.Lock()
@@ -65,11 +68,13 @@ func Stop() error {
 	}
 	playersMu.Unlock()
 
+	botLog("Music bot stopping...")
 	if err := musicSession.Close(); err != nil {
-		return err
+		logs := stopLogCapture()
+		return logs, err
 	}
 	musicSession = nil
-	return nil
+	return stopLogCapture(), nil
 }
 
 func Running() bool {

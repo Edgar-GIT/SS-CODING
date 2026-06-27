@@ -31,11 +31,11 @@ type MusicConfig struct {
 
 func initPaths() {
 	baseDir = resolveBaseDir()
-	musicDir = filepath.Join(baseDir, "music")
-	playlistDir = filepath.Join(baseDir, "playlists")
-	ffmpegDir = filepath.Join(baseDir, "ffmpeg")
-	binDir = filepath.Join(baseDir, "bin")
 	tempMusicDir = filepath.Join(baseDir, "temp_music")
+	musicDir = filepath.Join(tempMusicDir, "downloads")
+	playlistDir = filepath.Join(tempMusicDir, "playlists")
+	ffmpegDir = filepath.Join(tempMusicDir, "ffmpeg")
+	binDir = filepath.Join(tempMusicDir, "bin")
 }
 
 func resolveBaseDir() string {
@@ -62,7 +62,7 @@ func resolveBaseDir() string {
 
 func ensureDirs() error {
 	oncePaths.Do(initPaths)
-	for _, dir := range []string{musicDir, playlistDir, ffmpegDir, binDir} {
+	for _, dir := range []string{tempMusicDir, musicDir, playlistDir, ffmpegDir, binDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}

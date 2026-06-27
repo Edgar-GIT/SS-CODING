@@ -21,10 +21,6 @@ type Track struct {
 }
 
 func searchYouTube(query string) (*Track, error) {
-	track, err := extractStream("ytsearch:"+query, "ytsearch")
-	if err == nil && track != nil {
-		return track, nil
-	}
 	return downloadYouTube(query)
 }
 
