@@ -1,10 +1,11 @@
 package utils
 
-import(
+import (
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"ss-coding/utils"
 )
 
 
@@ -24,7 +25,7 @@ func PrintBanner(){
                                                                                     
 
 `
-	fmt.Print(text)
+	fmt.Print(utils.Yellow.Apply(text))
 }
 
 func ClearTerminal(){
