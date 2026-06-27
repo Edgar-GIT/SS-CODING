@@ -22,7 +22,10 @@ func main() {
 			runWebsite()
 		case choiceStop:
 			runStopWebsite()
+		case choiceTransporter:
+			runTransporter()
 		case choiceExit:
+			stopTransporter()
 			if utils.DevServerRunning() {
 				utils.PrintInfo("Stopping server before exit...")
 				_ = utils.StopDevServer()

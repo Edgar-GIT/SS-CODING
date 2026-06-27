@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"ss-coding/manager/transporter"
 	"ss-coding/utils"
 )
 
@@ -68,19 +69,22 @@ func runWebsite() {
 }
 
 func runStopWebsite() {
-	if !utils.DevServerRunning() {
-		utils.PrintError("No dev server running")
+	if !utils.DevServerRunning() && !transporter.Running() {
+		utils.PrintError("Nothing to stop")
 		utils.WaitEnter()
 		return
 	}
 
-	utils.PrintInfo("Stopping server...")
-	if err := utils.StopDevServer(); err != nil {
-		utils.PrintError(err.Error())
-		utils.WaitEnter()
-		return
+	utils.PrintInfo("Stopping...")
+	stopTransporter()
+	if utils.DevServerRunning() {
+		if err := utils.StopDevServer(); err != nil {
+			utils.PrintError(err.Error())
+			utils.WaitEnter()
+			return
+		}
 	}
 
-	utils.PrintSuccess("Server stopped")
+	utils.PrintSuccess("Stopped")
 	utils.WaitEnter()
 }
