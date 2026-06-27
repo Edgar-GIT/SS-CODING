@@ -5,12 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"ss-coding/utils"
 )
 
 
 func PrintBanner(){
-	text:=
+	banner:=
 `
   ______    ______          ______    ______   _______   ______  __    __   ______  
  /      \  /      \        /      \  /      \ |       \ |      \|  \  |  \ /      \ 
@@ -25,7 +24,7 @@ func PrintBanner(){
                                                                                     
 
 `
-	fmt.Print(utils.Yellow.Apply(text))
+	fmt.Print(Yellow.Apply(banner))
 }
 
 func ClearTerminal(){
