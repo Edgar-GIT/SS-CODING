@@ -22,13 +22,16 @@ type GuildPlayer struct {
 	looping        bool
 	volume         float64
 	page           int
-	vc              *discordgo.VoiceConnection
-	voiceChannelID  string
-	panelChannelID  string
+	vc             *discordgo.VoiceConnection
+	voiceChannelID string
+	panelChannelID string
 	panelMessageID string
 	guildID        string
 	playing        bool
 	paused         bool
+	positionSec    float64
+	playOffsetSec  float64
+	seekInterrupt  bool
 	stopPlayback   chan struct{}
 }
 
@@ -137,6 +140,40 @@ func (gp *GuildPlayer) panelRef() (string, string) {
 	return gp.panelChannelID, gp.panelMessageID
 }
 
+func (gp *GuildPlayer) progressSnapshot() (position float64, duration int) {
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
+	if gp.current != nil {
+		return gp.positionSec, gp.current.Duration
+	}
+	return 0, 0
+}
+
+func (gp *GuildPlayer) seekBy(delta float64) bool {
+	gp.mu.Lock()
+	if gp.current == nil || !gp.playing {
+		gp.mu.Unlock()
+		return false
+	}
+	dur := float64(gp.current.Duration)
+	newPos := gp.positionSec + delta
+	if newPos < 0 {
+		newPos = 0
+	}
+	if dur > 0 && newPos >= dur {
+		newPos = dur - 0.5
+		if newPos < 0 {
+			newPos = 0
+		}
+	}
+	gp.positionSec = newPos
+	gp.playOffsetSec = newPos
+	gp.seekInterrupt = true
+	gp.mu.Unlock()
+	gp.stopPlaybackNow()
+	return true
+}
+
 func (gp *GuildPlayer) setPage(page int) {
 	gp.mu.Lock()
 	if page < 0 {
@@ -241,57 +278,80 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		refreshPanel(session, gp.guildID)
 	}()
 
-	gp.cleanupCurrentFile()
+	for {
+		gp.cleanupCurrentFile()
 
-	gp.mu.Lock()
-	if gp.current != nil {
-		if gp.looping {
-			gp.queue = append([]Track{*gp.current}, gp.queue...)
-		} else {
-			gp.history = append(gp.history, *gp.current)
+		gp.mu.Lock()
+		if gp.current != nil {
+			if gp.looping {
+				gp.queue = append([]Track{*gp.current}, gp.queue...)
+			} else {
+				gp.history = append(gp.history, *gp.current)
+			}
 		}
-	}
-	if len(gp.queue) == 0 {
-		gp.current = nil
-		gp.mu.Unlock()
-		gp.disconnect()
-		sendPlain(session, channelID, "✅ Playlist empty. Leaving channel.")
-		return
-	}
-	next := gp.queue[0]
-	gp.queue = gp.queue[1:]
-	gp.current = &next
-	vc := gp.vc
-	volume := gp.volume
-	track := next
-	gp.mu.Unlock()
-
-	if track.URL == "" && track.FilePath == "" && track.Title != "" {
-		resolved, err := searchYouTube(track.Title)
-		if err != nil || resolved == nil {
-			sendPlain(session, channelID, "❌ Could not find: "+track.Title)
-			gp.playNext(session, channelID)
+		if len(gp.queue) == 0 {
+			gp.current = nil
+			gp.mu.Unlock()
+			gp.disconnect()
+			sendPlain(session, channelID, "✅ Playlist empty. Leaving channel.")
 			return
 		}
-		track = *resolved
-		gp.mu.Lock()
-		gp.current = &track
+		next := gp.queue[0]
+		gp.queue = gp.queue[1:]
+		gp.current = &next
+		gp.positionSec = 0
+		gp.playOffsetSec = 0
+		vc := gp.vc
+		volume := gp.volume
+		track := next
 		gp.mu.Unlock()
-	}
 
-	if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
-		botLog("voice not ready (status=%v)", vc.Status)
-		sendPlain(session, channelID, "❌ Voice connection not ready.")
-		return
-	}
+		if track.URL == "" && track.FilePath == "" && track.Title != "" {
+			resolved, err := searchYouTube(track.Title)
+			if err != nil || resolved == nil {
+				sendPlain(session, channelID, "❌ Could not find: "+track.Title)
+				gp.mu.Lock()
+				gp.current = nil
+				gp.mu.Unlock()
+				continue
+			}
+			track = *resolved
+			gp.mu.Lock()
+			gp.current = &track
+			gp.mu.Unlock()
+		}
 
-	if err := gp.streamTrack(vc, track, volume); err != nil {
-		botLog("playback error for %s: %v", track.Title, err)
-		sendPlain(session, channelID, "❌ Error playing music: "+err.Error())
-	}
+		if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
+			botLog("voice not ready (status=%v)", vc.Status)
+			sendPlain(session, channelID, "❌ Voice connection not ready.")
+			return
+		}
 
-	time.Sleep(50 * time.Millisecond)
-	gp.playNext(session, channelID)
+		if err := gp.playCurrentTrack(session, channelID, vc, track, volume); err != nil {
+			botLog("playback error for %s: %v", track.Title, err)
+			sendPlain(session, channelID, "❌ Error playing music: "+err.Error())
+		}
+	}
+}
+
+func (gp *GuildPlayer) playCurrentTrack(session *discordgo.Session, channelID string, vc *discordgo.VoiceConnection, track Track, volume float64) error {
+	for {
+		gp.mu.Lock()
+		offset := gp.playOffsetSec
+		gp.mu.Unlock()
+
+		err := gp.streamTrack(session, vc, track, volume, offset)
+
+		gp.mu.Lock()
+		interrupted := gp.seekInterrupt
+		gp.seekInterrupt = false
+		gp.mu.Unlock()
+
+		if !interrupted {
+			return err
+		}
+		refreshPanel(session, gp.guildID)
+	}
 }
 
 func (gp *GuildPlayer) cleanupCurrentFile() {
@@ -304,7 +364,7 @@ func (gp *GuildPlayer) cleanupCurrentFile() {
 	_ = os.Remove(current.FilePath)
 }
 
-func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, volume float64) error {
+func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.VoiceConnection, track Track, volume float64, startSec float64) error {
 	input := track.FilePath
 	if input == "" {
 		input = track.URL
@@ -325,19 +385,25 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 	options := *dca.StdEncodeOptions
 	options.Volume = int(volume * 256)
 	options.RawOutput = false
+	options.StartTime = int(startSec)
 
-	session, err := dca.EncodeFile(input, &options)
+	gp.mu.Lock()
+	gp.positionSec = startSec
+	gp.mu.Unlock()
+
+	encode, err := dca.EncodeFile(input, &options)
 	if err != nil {
 		botLog("dca encode error: %v", err)
 		return err
 	}
-	defer session.Cleanup()
+	defer encode.Cleanup()
 
 	vc.Speaking(true)
 	defer vc.Speaking(false)
 
 	stop := gp.stopPlayback
 	framesSent := 0
+	const frameDur = 0.02 // 20ms opus frames
 	for {
 		select {
 		case <-stop:
@@ -360,14 +426,14 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 			}
 		}
 
-		frame, err := session.OpusFrame()
+		frame, err := encode.OpusFrame()
 		if err != nil {
 			if err == io.EOF {
 				if framesSent == 0 {
-					if msg := session.FFMPEGMessages(); msg != "" {
+					if msg := encode.FFMPEGMessages(); msg != "" {
 						botLog("ffmpeg output:\n%s", msg)
 					}
-					if encErr := session.Error(); encErr != nil {
+					if encErr := encode.Error(); encErr != nil {
 						botLog("encode error: %v", encErr)
 					}
 					return fmt.Errorf("no audio frames encoded")
@@ -375,7 +441,7 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 				botLog("Finished track: %s (%d frames)", track.Title, framesSent)
 				return nil
 			}
-			if msg := session.FFMPEGMessages(); msg != "" {
+			if msg := encode.FFMPEGMessages(); msg != "" {
 				botLog("ffmpeg output:\n%s", msg)
 			}
 			botLog("opus frame error: %v", err)
@@ -385,6 +451,14 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 			return fmt.Errorf("empty opus frame")
 		}
 		framesSent++
+		gp.mu.Lock()
+		gp.positionSec += frameDur
+		gp.mu.Unlock()
+
+		if framesSent%50 == 0 {
+			refreshPanel(dgSession, gp.guildID)
+		}
+
 		select {
 		case vc.OpusSend <- frame:
 		case <-time.After(5 * time.Second):
@@ -396,11 +470,6 @@ func (gp *GuildPlayer) streamTrack(vc *discordgo.VoiceConnection, track Track, v
 }
 
 func (gp *GuildPlayer) skip(session *discordgo.Session, channelID string) {
-	gp.mu.Lock()
-	if gp.current != nil {
-		gp.history = append(gp.history, *gp.current)
-	}
-	gp.mu.Unlock()
 	gp.stopPlaybackNow()
 }
 

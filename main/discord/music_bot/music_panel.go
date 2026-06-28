@@ -17,9 +17,15 @@ func buildPanelEmbed(gp *GuildPlayer) *discordgo.MessageEmbed {
 	}
 
 	if current != nil {
+		pos, dur := gp.progressSnapshot()
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:   "Now Playing",
-			Value:  fmt.Sprintf("**%s**\nDuration: %s", current.Title, formatDuration(current.Duration)),
+			Value:  fmt.Sprintf("**%s**", current.Title),
+			Inline: false,
+		})
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:   "Progress",
+			Value:  buildProgressBar(pos, float64(dur)),
 			Inline: false,
 		})
 		if current.Thumbnail != "" {
@@ -73,6 +79,51 @@ func loopStatus(enabled bool) string {
 	return "Disabled ❌"
 }
 
+func buildProgressBar(elapsed, total float64) string {
+	const width = 18
+	if total <= 0 {
+		return fmt.Sprintf("`%s` %s", strings.Repeat("─", width), formatTimestamp(elapsed))
+	}
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	if elapsed > total {
+		elapsed = total
+	}
+	ratio := elapsed / total
+	pos := int(ratio * float64(width-1))
+	if pos < 0 {
+		pos = 0
+	}
+
+	var b strings.Builder
+	b.WriteString("`")
+	for i := 0; i < width; i++ {
+		switch {
+		case i < pos:
+			b.WriteRune('▬')
+		case i == pos:
+			b.WriteRune('🔘')
+		default:
+			b.WriteRune('─')
+		}
+	}
+	b.WriteString("`\n")
+	b.WriteString(formatTimestamp(elapsed))
+	b.WriteString(" / ")
+	b.WriteString(formatTimestamp(total))
+	return b.String()
+}
+
+func formatTimestamp(sec float64) string {
+	if sec < 0 {
+		sec = 0
+	}
+	m := int(sec) / 60
+	s := int(sec) % 60
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
 func panelComponents() []discordgo.MessageComponent {
 	return []discordgo.MessageComponent{
 		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
@@ -82,8 +133,12 @@ func panelComponents() []discordgo.MessageComponent {
 			button("music_loop", "🔁 Loop", discordgo.SecondaryButton),
 		}},
 		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+			button("music_rewind", "⏪ -5s", discordgo.SecondaryButton),
+			button("music_forward", "⏩ +5s", discordgo.SecondaryButton),
 			button("music_vol_down", "🔉 -5%", discordgo.SecondaryButton),
 			button("music_vol_up", "🔊 +5%", discordgo.SecondaryButton),
+		}},
+		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
 			button("music_prev", "⬅ Prev Song", discordgo.SecondaryButton),
 			button("music_next", "Next Song ➡", discordgo.SecondaryButton),
 		}},

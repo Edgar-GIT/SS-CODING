@@ -92,6 +92,7 @@ func handleHelp(session *discordgo.Session, channelID string) {
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: commandPrefix + "playmusic <name>", Value: "Search and play music from YouTube", Inline: false},
 			{Name: "⏯ / ⏭ / ⏹ / ⬅ / ➡", Value: "Control music with the panel buttons", Inline: false},
+			{Name: "⏪ / ⏩", Value: "Seek backward or forward 5 seconds", Inline: false},
 			{Name: commandPrefix + "replay", Value: "Loop the current song", Inline: false},
 			{Name: commandPrefix + "stoploop", Value: "Stop looping", Inline: false},
 			{Name: commandPrefix + "lyrics <music>", Value: "Fetch lyrics", Inline: false},
@@ -310,6 +311,18 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 		value := gp.adjustVolume(-0.05)
 		replyEphemeral(session, interaction, fmt.Sprintf("🔉 Volume: %d%%", int(value*100)))
 		refreshPanel(session, guildID)
+	case customID == "music_rewind":
+		if gp.seekBy(-5) {
+			replyEphemeral(session, interaction, "⏪ -5 seconds")
+		} else {
+			replyEphemeral(session, interaction, "🚫 Nothing is playing.")
+		}
+	case customID == "music_forward":
+		if gp.seekBy(5) {
+			replyEphemeral(session, interaction, "⏩ +5 seconds")
+		} else {
+			replyEphemeral(session, interaction, "🚫 Nothing is playing.")
+		}
 	case customID == "music_vol_up":
 		value := gp.adjustVolume(0.05)
 		replyEphemeral(session, interaction, fmt.Sprintf("🔊 Volume: %d%%", int(value*100)))
