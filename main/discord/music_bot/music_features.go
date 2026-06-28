@@ -190,10 +190,19 @@ func buildQueueEmbed(gp *GuildPlayer) *discordgo.MessageEmbed {
 	}
 
 	if current != nil {
+		pos, dur := gp.progressSnapshot()
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:  "Now Playing",
 			Value: "**" + current.Title + "**",
 		})
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:  "Progress",
+			Value: buildProgressBar(pos, float64(dur)),
+		})
+		remaining := len(queue) + 1
+		embed.Footer = &discordgo.MessageEmbedFooter{
+			Text: fmt.Sprintf("%d song(s) remaining in session", remaining),
+		}
 	}
 
 	if len(queue) == 0 {
@@ -230,4 +239,89 @@ func stringsJoinLines(lines []string, max int) string {
 		lines = append(lines, fmt.Sprintf("_…and %d more_", extra))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func buildPlaylistEmbeds(playlist *UserPlaylist, gp *GuildPlayer) []*discordgo.MessageEmbed {
+	currentIdx := playlistCurrentIndex(playlist.Songs, gp)
+	pos, dur := gp.progressSnapshot()
+	playing := gp.isPlaying()
+
+	var embeds []*discordgo.MessageEmbed
+	for pageStart := 0; pageStart < len(playlist.Songs); pageStart += 10 {
+		end := pageStart + 10
+		if end > len(playlist.Songs) {
+			end = len(playlist.Songs)
+		}
+		embed := &discordgo.MessageEmbed{Color: panelColor}
+		if pageStart == 0 {
+			embed.Title = "📂 " + playlist.Name
+			summary := fmt.Sprintf("%d songs", len(playlist.Songs))
+			if currentIdx >= 0 && playing {
+				summary += fmt.Sprintf(" · playing **%d/%d**", currentIdx+1, len(playlist.Songs))
+			}
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name: "Playlist", Value: summary, Inline: false,
+			})
+		}
+
+		for i := pageStart; i < end; i++ {
+			song := playlist.Songs[i]
+			icon, value := playlistSongLine(i, currentIdx, playing, song, pos, float64(dur))
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name:  fmt.Sprintf("%s %d.", icon, i+1),
+				Value: value,
+			})
+		}
+
+		if len(playlist.Songs) > 10 {
+			embed.Footer = &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("Page %d/%d", pageStart/10+1, (len(playlist.Songs)-1)/10+1),
+			}
+		}
+		embeds = append(embeds, embed)
+	}
+	return embeds
+}
+
+func playlistSongLine(index, currentIdx int, playing bool, song string, pos, dur float64) (icon, value string) {
+	switch {
+	case currentIdx >= 0 && index < currentIdx:
+		return "✅", song
+	case currentIdx >= 0 && index == currentIdx && playing:
+		return "▶", song + "\n" + buildProgressBar(pos, dur)
+	case currentIdx >= 0 && index == currentIdx:
+		return "▶", song
+	default:
+		return "·", song
+	}
+}
+
+func playlistCurrentIndex(songs []string, gp *GuildPlayer) int {
+	current, _, _, _, _, _ := gp.snapshot()
+	if current == nil {
+		return -1
+	}
+	return matchPlaylistIndex(songs, *current)
+}
+
+func matchPlaylistIndex(songs []string, track Track) int {
+	for i, song := range songs {
+		if matchPlaylistEntry(song, track) {
+			return i
+		}
+	}
+	return -1
+}
+
+func matchPlaylistEntry(playlistEntry string, track Track) bool {
+	key := track.Query
+	if key == "" {
+		key = track.Title
+	}
+	a := strings.ToLower(strings.TrimSpace(playlistEntry))
+	b := strings.ToLower(strings.TrimSpace(key))
+	if a == "" || b == "" {
+		return false
+	}
+	return a == b || strings.Contains(b, a) || strings.Contains(a, b)
 }

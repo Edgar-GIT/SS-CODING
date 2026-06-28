@@ -79,7 +79,7 @@ func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreat
 	case "playlistadd":
 		handlePlaylistAdd(session, channelID, author.ID, args)
 	case "showplaylist":
-		handleShowPlaylist(session, channelID, author.ID)
+		handleShowPlaylist(session, channelID, guildID, author.ID)
 	case "playlist":
 		handleQueuePlaylist(session, channelID, guildID, author)
 	case "queue":
@@ -118,7 +118,7 @@ func handleHelp(session *discordgo.Session, channelID string) {
 				commandPrefix + "voteskip — Vote to skip (majority in voice)",
 			}, "\n"), Inline: false},
 			{Name: "🎛️ Panel buttons", Value: strings.Join([]string{
-				"⏯ Pause/Resume · ⏭ Skip · ⏹ Stop · 🔁 Loop",
+				"⏯ Pause/Resume · ⏭ Skip · ⏹ Stop · 🔁 Loop · 📌 Stay",
 				"⏪ -5s · ⏩ +5s · 🔉/🔊 Volume",
 				"⬅ Prev · ➡ Next · 🔂 Replay Last · 📝 Lyrics",
 				"🗳️ Vote Skip · 🔀 Shuffle · 🗑️ Clear · 📋 View Queue",
@@ -254,7 +254,7 @@ func handlePlaylistAdd(session *discordgo.Session, channelID, userID, song strin
 	sendPlain(session, channelID, "➕ Added to your playlist: "+song)
 }
 
-func handleShowPlaylist(session *discordgo.Session, channelID, userID string) {
+func handleShowPlaylist(session *discordgo.Session, channelID, guildID, userID string) {
 	playlist, err := loadUserPlaylist(userID)
 	if err != nil || playlist == nil {
 		sendPlain(session, channelID, "⚠️ You don't have a playlist.")
@@ -267,23 +267,9 @@ func handleShowPlaylist(session *discordgo.Session, channelID, userID string) {
 		return
 	}
 
-	header := &discordgo.MessageEmbed{
-		Title: "📂 " + playlist.Name, Color: panelColor,
-		Fields: []*discordgo.MessageEmbedField{{Name: "Total songs", Value: strconv.Itoa(len(playlist.Songs)), Inline: false}},
-	}
-	_, _ = session.ChannelMessageSendEmbed(channelID, header)
-
-	for i := 0; i < len(playlist.Songs); i += 10 {
-		end := i + 10
-		if end > len(playlist.Songs) {
-			end = len(playlist.Songs)
-		}
-		embed := &discordgo.MessageEmbed{Color: panelColor}
-		for j, song := range playlist.Songs[i:end] {
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name: fmt.Sprintf("%d.", i+j+1), Value: song, Inline: false,
-			})
-		}
+	gp := getPlayer(guildID)
+	embeds := buildPlaylistEmbeds(playlist, gp)
+	for _, embed := range embeds {
 		_, _ = session.ChannelMessageSendEmbed(channelID, embed)
 	}
 }
@@ -405,12 +391,23 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 		replyEphemeral(session, interaction, "⏭ Skipped")
 		refreshPanel(session, guildID)
 	case customID == "music_stop":
-		gp.stopAll(session, channelID)
-		replyEphemeral(session, interaction, "⏹ Stopped and disconnected")
-		refreshPanel(session, guildID)
+		go func() {
+			gp.stopAll(session, channelID)
+			refreshPanel(session, guildID)
+		}()
+		replyEphemeral(session, interaction, "⏹ Stopping…")
 	case customID == "music_loop":
 		enabled := gp.toggleLoop()
 		replyEphemeral(session, interaction, "🔁 Loop "+onOff(enabled))
+		refreshPanel(session, guildID)
+	case customID == "music_stay":
+		enabled := !gp.stayInChannelEnabled()
+		gp.setStayInChannel(enabled)
+		if enabled {
+			replyEphemeral(session, interaction, "📌 Stay enabled — bot stays when queue ends.")
+		} else {
+			replyEphemeral(session, interaction, "📌 Stay disabled.")
+		}
 		refreshPanel(session, guildID)
 	case customID == "music_vol_down":
 		value := gp.adjustVolume(-0.05)

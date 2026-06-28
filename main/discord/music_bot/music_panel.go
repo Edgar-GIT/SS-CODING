@@ -43,8 +43,12 @@ func buildPanelEmbed(gp *GuildPlayer) *discordgo.MessageEmbed {
 		if end > len(queue) {
 			end = len(queue)
 		}
+		totalQueued := len(queue)
 		for i, song := range queue[start:end] {
 			title := song.Title
+			if title == "" {
+				title = song.Query
+			}
 			if title == "" {
 				title = "Unknown"
 			}
@@ -54,9 +58,13 @@ func buildPanelEmbed(gp *GuildPlayer) *discordgo.MessageEmbed {
 				Inline: false,
 			})
 		}
-		if len(queue) > 10 {
+		if totalQueued > 10 {
 			embed.Footer = &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("Page %d/%d", page+1, gp.pageCount(len(queue))),
+				Text: fmt.Sprintf("Queue page %d/%d · %d up next", page+1, gp.pageCount(totalQueued), totalQueued),
+			}
+		} else if current != nil {
+			embed.Footer = &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("%d up next after current song", totalQueued),
 			}
 		}
 	} else {
@@ -139,6 +147,7 @@ func panelComponents() []discordgo.MessageComponent {
 			button("music_skip", "⏭ Skip", discordgo.PrimaryButton),
 			button("music_stop", "⏹ Stop", discordgo.DangerButton),
 			button("music_loop", "🔁 Loop", discordgo.SecondaryButton),
+			button("music_stay", "📌 Stay", discordgo.SecondaryButton),
 		}},
 		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
 			button("music_rewind", "⏪ -5s", discordgo.SecondaryButton),

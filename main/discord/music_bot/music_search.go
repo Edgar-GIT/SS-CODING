@@ -121,6 +121,18 @@ func downloadYouTube(query string) (*Track, error) {
 	return meta, nil
 }
 
+// resolveQueuedTrack resolves a title-only queue entry via streaming (fast, no full download).
+func resolveQueuedTrack(ctx context.Context, query string) (*Track, error) {
+	track, err := extractStream(ctx, "ytsearch:"+query, "ytsearch")
+	if err != nil {
+		return nil, err
+	}
+	if track.Query == "" {
+		track.Query = query
+	}
+	return track, nil
+}
+
 func pickAudioURL(payload map[string]any) string {
 	if formats, ok := payload["formats"].([]any); ok {
 		var best string
