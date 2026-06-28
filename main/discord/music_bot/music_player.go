@@ -39,7 +39,6 @@ type GuildPlayer struct {
 	textChannelID  string
 	skipVoters     map[string]struct{}
 	stopping       bool
-	prefetching    bool
 }
 
 var (
@@ -269,56 +268,10 @@ func (gp *GuildPlayer) isStopping() bool {
 }
 
 func (gp *GuildPlayer) startIfIdle(session *discordgo.Session, channelID string) {
-	if gp.isPlaying() {
+	if gp.isPlaying() || gp.isStopping() || isHalted() {
 		return
 	}
 	go gp.playNext(session, channelID)
-}
-
-// prefetchNext downloads only the next queue item while the current song plays.
-func (gp *GuildPlayer) prefetchNext() {
-	gp.mu.Lock()
-	if gp.prefetching || gp.stopping || len(gp.queue) == 0 {
-		gp.mu.Unlock()
-		return
-	}
-	head := gp.queue[0]
-	if !trackNeedsDownload(head) {
-		gp.mu.Unlock()
-		return
-	}
-	query := trackSearchQuery(head)
-	gp.prefetching = true
-	gp.mu.Unlock()
-
-	go func() {
-		defer func() {
-			gp.mu.Lock()
-			gp.prefetching = false
-			gp.mu.Unlock()
-		}()
-
-		if gp.isStopping() {
-			return
-		}
-
-		botLogInfo("Prefetching next: %s", query)
-		track, err := searchYouTube(query)
-		if err != nil {
-			botLogWarn("Prefetch failed for %s: %v", query, err)
-			return
-		}
-		track.Query = query
-
-		gp.mu.Lock()
-		defer gp.mu.Unlock()
-		if gp.stopping || len(gp.queue) == 0 {
-			return
-		}
-		if trackSearchQuery(gp.queue[0]) == query {
-			gp.queue[0] = *track
-		}
-	}()
 }
 
 func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
@@ -339,7 +292,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 	}()
 
 	for {
-		if gp.isStopping() {
+		if gp.isStopping() || isHalted() {
 			return
 		}
 
@@ -380,7 +333,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 			query := trackSearchQuery(track)
 			sendPlain(session, channelID, "Downloading: **"+query+"**…")
 			resolved, err := searchYouTube(query)
-			if gp.isStopping() {
+			if gp.isStopping() || isHalted() {
 				return
 			}
 			if err != nil || resolved == nil {
