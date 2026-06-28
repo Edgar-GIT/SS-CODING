@@ -7,40 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/google/uuid"
 	"ss-coding/discord/deps"
 )
-
-var activeDownload struct {
-	mu  sync.Mutex
-	cmd *exec.Cmd
-}
-
-func setActiveDownload(cmd *exec.Cmd) {
-	activeDownload.mu.Lock()
-	activeDownload.cmd = cmd
-	activeDownload.mu.Unlock()
-}
-
-func clearActiveDownload(cmd *exec.Cmd) {
-	activeDownload.mu.Lock()
-	if activeDownload.cmd == cmd {
-		activeDownload.cmd = nil
-	}
-	activeDownload.mu.Unlock()
-}
-
-func killActiveDownload() {
-	activeDownload.mu.Lock()
-	cmd := activeDownload.cmd
-	activeDownload.cmd = nil
-	activeDownload.mu.Unlock()
-	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Kill()
-	}
-}
 
 type Track struct {
 	Title     string `json:"title"`
@@ -79,12 +49,13 @@ func extractStream(target, mode string) (*Track, error) {
 		"--ffmpeg-location", filepath.Dir(ffmpeg),
 		"-f", "bestaudio/best",
 		"--dump-single-json",
+		target,
 	}
-	args = append(args, target)
 
-	out, err := exec.Command(ytdlp, args...).Output()
+	cmd := exec.Command(ytdlp, args...)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("yt-dlp metadata: %w", err)
 	}
 
 	var payload map[string]any
@@ -106,12 +77,20 @@ func extractStream(target, mode string) (*Track, error) {
 }
 
 func downloadYouTube(query string) (*Track, error) {
+	if isHalted() {
+		return nil, fmt.Errorf("bot is stopping")
+	}
+
 	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
 	}
 	ffmpeg, err := deps.FFmpegPath()
 	if err != nil {
+		return nil, err
+	}
+
+	if err := deps.EnsureDirs(); err != nil {
 		return nil, err
 	}
 
@@ -126,17 +105,18 @@ func downloadYouTube(query string) (*Track, error) {
 		"ytsearch:" + query,
 	}
 	cmd := exec.Command(ytdlp, args...)
-	setActiveDownload(cmd)
-	defer clearActiveDownload(cmd)
-
-	if err := cmd.Run(); err != nil {
-		return nil, err
+	if err := runDownloadCmd(cmd); err != nil {
+		if isHalted() {
+			return nil, fmt.Errorf("download cancelled")
+		}
+		return nil, fmt.Errorf("yt-dlp download: %w", err)
 	}
+
 	if _, err := os.Stat(filePath); err != nil {
 		base := strings.TrimSuffix(filePath, ".mp3")
 		matches, _ := filepath.Glob(base + ".*")
 		if len(matches) == 0 {
-			return nil, fmt.Errorf("download failed")
+			return nil, fmt.Errorf("download file missing")
 		}
 		filePath = matches[0]
 	}
@@ -148,6 +128,7 @@ func downloadYouTube(query string) (*Track, error) {
 	meta.FilePath = filePath
 	meta.URL = ""
 	meta.Query = query
+	botLogInfo("Downloaded: %s -> %s", query, filePath)
 	return meta, nil
 }
 

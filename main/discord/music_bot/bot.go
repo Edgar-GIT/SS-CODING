@@ -22,6 +22,8 @@ func Enable() error {
 		return fmt.Errorf("music bot already running")
 	}
 
+	resetHalt()
+
 	if err := deps.InstallAll(); err != nil {
 		return err
 	}
@@ -57,8 +59,12 @@ func Enable() error {
 }
 
 func Stop() (string, error) {
+	haltBot()
+	killAllDownloads()
+
 	musicMu.Lock()
 	session := musicSession
+	musicSession = nil
 	musicMu.Unlock()
 
 	if session == nil {
@@ -78,30 +84,13 @@ func Stop() (string, error) {
 		gp.stopAll(session, "")
 	}
 
-	closeDone := make(chan error, 1)
 	go func() {
-		musicMu.Lock()
-		defer musicMu.Unlock()
-		if musicSession == nil {
-			closeDone <- nil
-			return
-		}
-		closeDone <- musicSession.Close()
-		musicSession = nil
+		_ = session.Close()
 	}()
 
-	var closeErr error
-	select {
-	case closeErr = <-closeDone:
-	case <-time.After(4 * time.Second):
-		musicMu.Lock()
-		musicSession = nil
-		musicMu.Unlock()
-		closeErr = fmt.Errorf("discord session close timed out (bot was force-stopped)")
-	}
-
+	time.Sleep(300 * time.Millisecond)
 	logs := stopLogCapture()
-	return logs, closeErr
+	return logs, nil
 }
 
 func Running() bool {
