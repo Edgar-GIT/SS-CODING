@@ -21,7 +21,10 @@ func printBotStatus() {
 	if MainBotRunning() {
 		fmt.Println(utils.HiGreen.Apply("  ● Main bot running"))
 	}
-	if MusicBotRunning() || MainBotRunning() {
+	if ZeusBotRunning() {
+		fmt.Println(utils.HiGreen.Apply("  ● Zeus bot running"))
+	}
+	if MusicBotRunning() || MainBotRunning() || ZeusBotRunning() {
 		fmt.Println()
 	}
 }
@@ -64,6 +67,17 @@ func launchAllBots() {
 		utils.PrintSuccess("Main bot online")
 	} else {
 		utils.PrintInfo("Main bot already running")
+	}
+
+	if !ZeusBotRunning() {
+		utils.PrintInfo("Starting zeus bot...")
+		if err := EnableZeusBot(); err != nil {
+			utils.PrintError(err.Error())
+			return
+		}
+		utils.PrintSuccess("Zeus bot online")
+	} else {
+		utils.PrintInfo("Zeus bot already running")
 	}
 }
 

@@ -3,17 +3,23 @@ package discord
 import (
 	mainbot "ss-coding/discord/main_bot"
 	musicbot "ss-coding/discord/music_bot"
+	zeusbot "ss-coding/discord/zeus_bot"
 )
 
-func EnableMusicBot() error       { return musicbot.Enable() }
+func EnableMusicBot() error        { return musicbot.Enable() }
 func StopMusicBot() (string, error) { return musicbot.Stop() }
-func MusicBotRunning() bool       { return musicbot.Running() }
+func MusicBotRunning() bool        { return musicbot.Running() }
 
-func EnableMainBot() error  { return mainbot.Enable() }
-func StopMainBot() error    { return mainbot.Stop() }
-func MainBotRunning() bool  { return mainbot.Running() }
+func EnableMainBot() error { return mainbot.Enable() }
+func StopMainBot() error   { return mainbot.Stop() }
+func MainBotRunning() bool { return mainbot.Running() }
+
+func EnableZeusBot() error { return zeusbot.Enable() }
+func StopZeusBot() error   { return zeusbot.Stop() }
+func ZeusBotRunning() bool { return zeusbot.Running() }
 
 func StopAllBots() {
 	_, _ = StopMusicBot()
 	_ = StopMainBot()
+	_ = StopZeusBot()
 }

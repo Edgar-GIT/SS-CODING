@@ -14,6 +14,7 @@ func printDebugMenu() {
 	printBotStatus()
 	utils.PrintMenuOption("1", "Music bot")
 	utils.PrintMenuOption("2", "Main bot")
+	utils.PrintMenuOption("3", "Zeus bot")
 	utils.PrintMenuOption("0", "Back")
 	utils.PrintDivider()
 	fmt.Println()
@@ -35,6 +36,19 @@ func printMusicDebugMenu() {
 func printMainDebugMenu() {
 	utils.PrintMenuHeader("Main Bot Debug")
 	if MainBotRunning() {
+		fmt.Println(utils.HiGreen.Apply("  ● Running"))
+		fmt.Println()
+	}
+	utils.PrintMenuOption("1", "Start bot")
+	utils.PrintMenuOption("2", "Stop bot (show logs)")
+	utils.PrintMenuOption("0", "Back")
+	utils.PrintDivider()
+	fmt.Println()
+}
+
+func printZeusDebugMenu() {
+	utils.PrintMenuHeader("Zeus Bot Debug")
+	if ZeusBotRunning() {
 		fmt.Println(utils.HiGreen.Apply("  ● Running"))
 		fmt.Println()
 	}
@@ -127,6 +141,33 @@ func stopMainBotDebug() {
 	utils.WaitEnter()
 }
 
+func startZeusBotDebug() {
+	if ZeusBotRunning() {
+		utils.PrintInfo("Zeus bot already running")
+		return
+	}
+	utils.PrintInfo("Starting zeus bot...")
+	if err := EnableZeusBot(); err != nil {
+		utils.PrintError(err.Error())
+		utils.WaitEnter()
+		return
+	}
+	utils.PrintSuccess("Zeus bot online")
+}
+
+func stopZeusBotDebug() {
+	if !ZeusBotRunning() {
+		utils.PrintInfo("Zeus bot is not running")
+		utils.WaitEnter()
+		return
+	}
+	utils.PrintInfo("Stopping zeus bot...")
+	if err := StopZeusBot(); err != nil {
+		utils.PrintError(err.Error())
+	}
+	utils.WaitEnter()
+}
+
 func runMusicDebugMenu() {
 	for {
 		utils.ClearTerminal()
@@ -161,6 +202,23 @@ func runMainDebugMenu() {
 	}
 }
 
+func runZeusDebugMenu() {
+	for {
+		utils.ClearTerminal()
+		printZeusDebugMenu()
+		switch utils.ReadChoice("Select an option: ") {
+		case "1":
+			startZeusBotDebug()
+		case "2":
+			stopZeusBotDebug()
+		case "0":
+			return
+		default:
+			utils.PrintError("Invalid option")
+		}
+	}
+}
+
 func runDebugMenu() {
 	for {
 		utils.ClearTerminal()
@@ -170,6 +228,8 @@ func runDebugMenu() {
 			runMusicDebugMenu()
 		case "2":
 			runMainDebugMenu()
+		case "3":
+			runZeusDebugMenu()
 		case "0":
 			return
 		default:
