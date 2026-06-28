@@ -312,8 +312,6 @@ func startPlayback(session *discordgo.Session, channelID, guildID string, _ *dis
 			return
 		}
 		gp.beginPlay(session, channelID)
-		time.Sleep(800 * time.Millisecond)
-		sendNewPanel(session, gp, channelID)
 	}()
 }
 

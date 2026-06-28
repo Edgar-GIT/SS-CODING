@@ -39,6 +39,7 @@ type GuildPlayer struct {
 	textChannelID  string
 	skipVoters     map[string]struct{}
 	playGen        uint64
+	prefetchQuery  string
 }
 
 var (
@@ -384,7 +385,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string, ge
 		gp.mu.Unlock()
 
 		botLogInfo("playNext: track %q file=%q url=%q", track.Title, track.FilePath, track.URL)
-		go refreshPanel(session, gp.guildID)
+		sendNewPanel(session, gp, channelID)
 
 		if trackNeedsDownload(track) {
 			query := trackSearchQuery(track)
@@ -438,6 +439,8 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string, ge
 			vc = gp.vc
 			gp.mu.Unlock()
 		}
+
+		go gp.prefetchNextTrack(gen)
 
 		if err := gp.playCurrentTrack(session, vc, track, volume); err != nil {
 			if botHalted() {
@@ -621,6 +624,7 @@ func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
 	gp.stopPlayback = make(chan struct{}, 1)
 	gp.panelChannelID = ""
 	gp.panelMessageID = ""
+	gp.prefetchQuery = ""
 	gp.mu.Unlock()
 
 	go gp.disconnect()
