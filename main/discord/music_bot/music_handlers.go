@@ -120,7 +120,7 @@ func handleHelp(session *discordgo.Session, channelID string) {
 			{Name: "🎛️ Panel buttons", Value: strings.Join([]string{
 				"⏯ Pause/Resume · ⏭ Skip · ⏹ Stop · 🔁 Loop",
 				"⏪ -5s · ⏩ +5s · 🔉/🔊 Volume",
-				"⬅ Prev · ➡ Next · 🔂 Replay Last",
+				"⬅ Prev · ➡ Next · 🔂 Replay Last · 📝 Lyrics",
 				"🗳️ Vote Skip · 🔀 Shuffle · 🗑️ Clear · 📋 View Queue",
 			}, "\n"), Inline: false},
 			{Name: "📌 Voice", Value: strings.Join([]string{
@@ -480,6 +480,14 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 			refreshPanel(session, guildID)
 		} else {
 			replyEphemeral(session, interaction, "🚫 No previous song.")
+		}
+	case customID == "music_lyrics":
+		current, _, _, _, _, _ := gp.snapshot()
+		if current == nil {
+			replyEphemeral(session, interaction, "🚫 Nothing is playing.")
+		} else {
+			replyEphemeral(session, interaction, fmt.Sprintf("📝 Fetching lyrics for **%s**…", current.Title))
+			handleLyrics(session, channelID, guildID, "")
 		}
 	case strings.HasPrefix(customID, "music_confirm_yes_"):
 		handleConfirmYes(session, interaction, userID, channelID, guildID)

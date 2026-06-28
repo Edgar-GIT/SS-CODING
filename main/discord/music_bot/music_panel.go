@@ -150,6 +150,7 @@ func panelComponents() []discordgo.MessageComponent {
 			button("music_prev", "⬅ Prev Song", discordgo.SecondaryButton),
 			button("music_next", "Next Song ➡", discordgo.SecondaryButton),
 			button("music_replay_last", "🔂 Replay Last", discordgo.SecondaryButton),
+			button("music_lyrics", "📝 Lyrics", discordgo.SecondaryButton),
 		}},
 		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
 			button("music_vote_skip", "🗳️ Vote Skip", discordgo.PrimaryButton),
