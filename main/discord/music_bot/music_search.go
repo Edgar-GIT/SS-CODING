@@ -1,7 +1,6 @@
 package musicbot
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,43 +13,38 @@ import (
 	"ss-coding/discord/deps"
 )
 
-var (
-	downloadMu  sync.Mutex
-	downloadCmd []*exec.Cmd
-)
-
-func registerDownloadCmd(cmd *exec.Cmd) {
-	downloadMu.Lock()
-	downloadCmd = append(downloadCmd, cmd)
-	downloadMu.Unlock()
+var activeDownload struct {
+	mu  sync.Mutex
+	cmd *exec.Cmd
 }
 
-func unregisterDownloadCmd(cmd *exec.Cmd) {
-	downloadMu.Lock()
-	defer downloadMu.Unlock()
-	for i, c := range downloadCmd {
-		if c == cmd {
-			downloadCmd = append(downloadCmd[:i], downloadCmd[i+1:]...)
-			return
-		}
+func setActiveDownload(cmd *exec.Cmd) {
+	activeDownload.mu.Lock()
+	activeDownload.cmd = cmd
+	activeDownload.mu.Unlock()
+}
+
+func clearActiveDownload(cmd *exec.Cmd) {
+	activeDownload.mu.Lock()
+	if activeDownload.cmd == cmd {
+		activeDownload.cmd = nil
 	}
+	activeDownload.mu.Unlock()
 }
 
-func killAllDownloads() {
-	downloadMu.Lock()
-	cmds := downloadCmd
-	downloadCmd = nil
-	downloadMu.Unlock()
-	for _, cmd := range cmds {
-		if cmd != nil && cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
+func killActiveDownload() {
+	activeDownload.mu.Lock()
+	cmd := activeDownload.cmd
+	activeDownload.cmd = nil
+	activeDownload.mu.Unlock()
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
 	}
 }
 
 type Track struct {
 	Title     string `json:"title"`
-	Query     string `json:"query,omitempty"` // original playlist/search text
+	Query     string `json:"query,omitempty"`
 	Uploader  string `json:"uploader,omitempty"`
 	Thumbnail string `json:"thumbnail,omitempty"`
 	Duration  int    `json:"duration"`
@@ -59,7 +53,7 @@ type Track struct {
 }
 
 func searchYouTube(query string) (*Track, error) {
-	return downloadYouTubeCtx(context.Background(), query)
+	return downloadYouTube(query)
 }
 
 func searchSoundCloud(query string) (*Track, error) {
@@ -67,10 +61,10 @@ func searchSoundCloud(query string) (*Track, error) {
 	if !strings.HasPrefix(query, "http://") && !strings.HasPrefix(query, "https://") {
 		target = "scsearch:" + query
 	}
-	return extractStream(context.Background(), target, "scsearch")
+	return extractStream(target, "scsearch")
 }
 
-func extractStream(ctx context.Context, target, mode string) (*Track, error) {
+func extractStream(target, mode string) (*Track, error) {
 	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
@@ -86,13 +80,9 @@ func extractStream(ctx context.Context, target, mode string) (*Track, error) {
 		"-f", "bestaudio/best",
 		"--dump-single-json",
 	}
-	if mode == "ytsearch" || mode == "scsearch" {
-		args = append(args, target)
-	} else {
-		args = append(args, target)
-	}
+	args = append(args, target)
 
-	out, err := exec.CommandContext(ctx, ytdlp, args...).Output()
+	out, err := exec.Command(ytdlp, args...).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -116,10 +106,6 @@ func extractStream(ctx context.Context, target, mode string) (*Track, error) {
 }
 
 func downloadYouTube(query string) (*Track, error) {
-	return downloadYouTubeCtx(context.Background(), query)
-}
-
-func downloadYouTubeCtx(ctx context.Context, query string) (*Track, error) {
 	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
@@ -139,14 +125,11 @@ func downloadYouTubeCtx(ctx context.Context, query string) (*Track, error) {
 		"-o", filePath,
 		"ytsearch:" + query,
 	}
-	cmd := exec.CommandContext(ctx, ytdlp, args...)
-	registerDownloadCmd(cmd)
-	defer unregisterDownloadCmd(cmd)
+	cmd := exec.Command(ytdlp, args...)
+	setActiveDownload(cmd)
+	defer clearActiveDownload(cmd)
 
 	if err := cmd.Run(); err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
 		return nil, err
 	}
 	if _, err := os.Stat(filePath); err != nil {
@@ -158,7 +141,7 @@ func downloadYouTubeCtx(ctx context.Context, query string) (*Track, error) {
 		filePath = matches[0]
 	}
 
-	meta, err := extractStream(ctx, "ytsearch:"+query, "ytsearch")
+	meta, err := extractStream("ytsearch:"+query, "ytsearch")
 	if err != nil {
 		meta = &Track{Title: query, Query: query}
 	}
@@ -229,4 +212,15 @@ func formatDuration(seconds int) string {
 		return "Unknown"
 	}
 	return fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
+}
+
+func trackNeedsDownload(t Track) bool {
+	return t.FilePath == "" && t.URL == "" && (t.Query != "" || t.Title != "")
+}
+
+func trackSearchQuery(t Track) string {
+	if t.Query != "" {
+		return t.Query
+	}
+	return t.Title
 }

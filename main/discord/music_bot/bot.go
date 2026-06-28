@@ -3,6 +3,7 @@ package musicbot
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"ss-coding/discord/deps"
@@ -77,19 +78,30 @@ func Stop() (string, error) {
 		gp.stopAll(session, "")
 	}
 
-	musicMu.Lock()
-	defer musicMu.Unlock()
-	if musicSession == nil {
-		return stopLogCapture(), nil
+	closeDone := make(chan error, 1)
+	go func() {
+		musicMu.Lock()
+		defer musicMu.Unlock()
+		if musicSession == nil {
+			closeDone <- nil
+			return
+		}
+		closeDone <- musicSession.Close()
+		musicSession = nil
+	}()
+
+	var closeErr error
+	select {
+	case closeErr = <-closeDone:
+	case <-time.After(4 * time.Second):
+		musicMu.Lock()
+		musicSession = nil
+		musicMu.Unlock()
+		closeErr = fmt.Errorf("discord session close timed out (bot was force-stopped)")
 	}
 
-	if err := musicSession.Close(); err != nil {
-		logs := stopLogCapture()
-		musicSession = nil
-		return logs, err
-	}
-	musicSession = nil
-	return stopLogCapture(), nil
+	logs := stopLogCapture()
+	return logs, closeErr
 }
 
 func Running() bool {
