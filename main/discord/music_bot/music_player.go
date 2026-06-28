@@ -38,8 +38,9 @@ type GuildPlayer struct {
 	reconnecting   bool
 	textChannelID  string
 	skipVoters     map[string]struct{}
-	playGen        uint64
-	prefetchQuery  string
+	playGen           uint64
+	prefetchQuery     string
+	startingPlayback  bool
 }
 
 var (
@@ -503,7 +504,9 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 	options := *dca.StdEncodeOptions
 	options.Volume = int(volume * 256)
 	options.RawOutput = true
-	options.StartTime = int(startSec)
+	if startSec > 0 {
+		options.StartTime = int(startSec + 0.5)
+	}
 
 	gp.mu.Lock()
 	gp.positionSec = startSec
@@ -625,6 +628,7 @@ func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
 	gp.panelChannelID = ""
 	gp.panelMessageID = ""
 	gp.prefetchQuery = ""
+	gp.startingPlayback = false
 	gp.mu.Unlock()
 
 	go gp.disconnect()

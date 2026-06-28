@@ -213,8 +213,11 @@ func (e *EncodeSession) run() {
 		"-nostdin",
 		"-hide_banner",
 		"-loglevel", "error",
-		"-i", inFile,
 	}
+	if e.options.StartTime > 0 {
+		args = append(args, "-ss", strconv.Itoa(e.options.StartTime))
+	}
+	args = append(args, "-i", inFile)
 	if isStream {
 		args = append(args,
 			"-reconnect", "1",
@@ -237,9 +240,6 @@ func (e *EncodeSession) run() {
 		"-packet_loss", strconv.Itoa(e.options.PacketLoss),
 		"-threads", strconv.Itoa(e.options.Threads),
 	)
-	if e.options.StartTime > 0 {
-		args = append(args, "-ss", strconv.Itoa(e.options.StartTime))
-	}
 
 	audioFilter := e.options.AudioFilter
 	if e.options.Volume != 256 {

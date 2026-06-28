@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ss-coding/discord"
 	"ss-coding/utils"
 )
 
@@ -32,6 +33,7 @@ func main() {
 				utils.PrintInfo("Stopping server before exit...")
 				_ = utils.StopDevServer()
 			}
+			discord.StopAllBots()
 			utils.PrintInfo("Goodbye")
 			return
 		default:

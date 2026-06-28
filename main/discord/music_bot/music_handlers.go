@@ -300,7 +300,30 @@ func startPlayback(session *discordgo.Session, channelID, guildID string, _ *dis
 	gp := getPlayer(guildID)
 	gp.setTextChannel(channelID)
 
+	gp.mu.Lock()
+	if gp.playing {
+		gen := gp.playGen
+		queue := len(gp.queue)
+		gp.mu.Unlock()
+		botLogInfo("startPlayback: already playing, track queued (%d in queue)", queue)
+		go gp.prefetchNextTrack(gen)
+		return
+	}
+	if gp.startingPlayback {
+		gp.mu.Unlock()
+		botLogInfo("startPlayback: startup already in progress")
+		return
+	}
+	gp.startingPlayback = true
+	gp.mu.Unlock()
+
 	go func() {
+		defer func() {
+			gp.mu.Lock()
+			gp.startingPlayback = false
+			gp.mu.Unlock()
+		}()
+
 		if botHalted() {
 			return
 		}
@@ -439,13 +462,13 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 		runAfterReply(session, interaction, fmt.Sprintf("Volume: %d%%", int(value*100)), func() { refreshPanel(session, guildID) })
 	case customID == "music_rewind":
 		if gp.seekBy(-5) {
-			replyEphemeral(session, interaction, "-5 seconds")
+			runAfterReply(session, interaction, "-5 seconds", func() { refreshPanel(session, guildID) })
 		} else {
 			replyEphemeral(session, interaction, "Nothing is playing.")
 		}
 	case customID == "music_forward":
 		if gp.seekBy(5) {
-			replyEphemeral(session, interaction, "+5 seconds")
+			runAfterReply(session, interaction, "+5 seconds", func() { refreshPanel(session, guildID) })
 		} else {
 			replyEphemeral(session, interaction, "Nothing is playing.")
 		}

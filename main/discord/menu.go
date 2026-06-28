@@ -83,10 +83,10 @@ func RunMenu(nested bool) {
 		case "3":
 			runDebugMenu()
 		case "0":
-			StopAllBots()
 			if nested {
 				return
 			}
+			StopAllBots()
 			utils.PrintInfo("Goodbye")
 			return
 		default:
