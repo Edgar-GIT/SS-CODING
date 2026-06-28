@@ -1,19 +1,38 @@
 package musicbot
 
 import (
+	"fmt"
+	"os/exec"
 	"sync/atomic"
+	"time"
 )
 
-var halted atomic.Bool
+var botHaltedFlag atomic.Bool
 
 func haltBot() {
-	halted.Store(true)
+	botHaltedFlag.Store(true)
 }
 
 func resetHalt() {
-	halted.Store(false)
+	botHaltedFlag.Store(false)
 }
 
-func isHalted() bool {
-	return halted.Load()
+func botHalted() bool {
+	return botHaltedFlag.Load()
+}
+
+func sleepOrHalt(d time.Duration) error {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		if botHalted() {
+			return fmt.Errorf("cancelled")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
+}
+
+func pkillMediaProcesses() {
+	_ = exec.Command("pkill", "-9", "yt-dlp").Run()
+	_ = exec.Command("pkill", "-9", "ffmpeg").Run()
 }

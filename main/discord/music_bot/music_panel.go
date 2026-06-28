@@ -201,16 +201,7 @@ func sendOrUpdatePanel(session *discordgo.Session, gp *GuildPlayer, channelID st
 }
 
 func refreshPanel(session *discordgo.Session, guildID string) {
-	gp := getPlayer(guildID)
-	channelID, messageID := gp.panelRef()
-	if channelID == "" || messageID == "" {
-		return
-	}
-	embed := buildPanelEmbed(gp)
-	components := panelComponents()
-	_, _ = session.ChannelMessageEditComplex(&discordgo.MessageEdit{
-		Channel: channelID, ID: messageID, Embed: embed, Components: &components,
-	})
+	go refreshPanelNow(session, guildID)
 }
 
 func buildPreviewEmbed(track *Track) *discordgo.MessageEmbed {
@@ -246,6 +237,26 @@ func fallback(value, alt string) string {
 
 func sendPlain(session *discordgo.Session, channelID, content string) {
 	_, _ = session.ChannelMessageSend(channelID, content)
+}
+
+func refreshPanelNow(session *discordgo.Session, guildID string) {
+	gp := getPlayer(guildID)
+	channelID, messageID := gp.panelRef()
+	if channelID == "" || messageID == "" {
+		return
+	}
+	embed := buildPanelEmbed(gp)
+	components := panelComponents()
+	_, _ = session.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		Channel: channelID, ID: messageID, Embed: embed, Components: &components,
+	})
+}
+
+func runAfterReply(session *discordgo.Session, interaction *discordgo.InteractionCreate, msg string, fn func()) {
+	replyEphemeral(session, interaction, msg)
+	if fn != nil {
+		go fn()
+	}
 }
 
 func replyEphemeral(session *discordgo.Session, interaction *discordgo.InteractionCreate, content string) {

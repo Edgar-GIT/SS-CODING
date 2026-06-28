@@ -38,7 +38,6 @@ type GuildPlayer struct {
 	reconnecting   bool
 	textChannelID  string
 	skipVoters     map[string]struct{}
-	stopping       bool
 }
 
 var (
@@ -197,35 +196,41 @@ func (gp *GuildPlayer) pageCount(queueLen int) int {
 }
 
 func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) error {
+	if botHalted() {
+		return fmt.Errorf("connect cancelled")
+	}
+
 	gp.mu.Lock()
-	if gp.vc != nil && gp.vc.Status == discordgo.VoiceConnectionStatusReady {
-		if gp.voiceChannelID == channelID {
-			gp.mu.Unlock()
-			return nil
-		}
+	if gp.vc != nil && gp.voiceChannelID == channelID {
 		vc := gp.vc
 		gp.mu.Unlock()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = vc.Disconnect(ctx)
-		cancel()
-		gp.mu.Lock()
-		gp.vc = nil
-		gp.voiceChannelID = ""
+		if vc.Status == discordgo.VoiceConnectionStatusReady {
+			return nil
+		}
+	} else {
+		gp.mu.Unlock()
 	}
-	gp.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	gp.disconnect()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	vc, err := session.ChannelVoiceJoin(ctx, gp.guildID, channelID, false, false)
 	if err != nil {
 		return err
 	}
-	time.Sleep(3 * time.Second)
+
+	if err := sleepOrHalt(3 * time.Second); err != nil {
+		_ = vc.Disconnect(ctx)
+		return err
+	}
+
 	gp.mu.Lock()
 	gp.vc = vc
 	gp.voiceChannelID = channelID
 	gp.wantVoice = true
 	gp.mu.Unlock()
+	botLogInfo("Connected to voice channel %s", channelID)
 	return nil
 }
 
@@ -261,17 +266,21 @@ func (gp *GuildPlayer) isPlaying() bool {
 	return gp.playing
 }
 
-func (gp *GuildPlayer) isStopping() bool {
-	gp.mu.Lock()
-	defer gp.mu.Unlock()
-	return gp.stopping
-}
-
 func (gp *GuildPlayer) startIfIdle(session *discordgo.Session, channelID string) {
-	if gp.isPlaying() || gp.isStopping() || isHalted() {
+	gp.mu.Lock()
+	if gp.playing {
+		gp.mu.Unlock()
 		return
 	}
+	gp.mu.Unlock()
 	go gp.playNext(session, channelID)
+}
+
+func (gp *GuildPlayer) kickPlayback(session *discordgo.Session, channelID string) {
+	gp.mu.Lock()
+	gp.playing = false
+	gp.mu.Unlock()
+	gp.startIfIdle(session, channelID)
 }
 
 func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
@@ -281,18 +290,17 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		return
 	}
 	gp.playing = true
-	gp.stopping = false
 	gp.mu.Unlock()
 
 	defer func() {
 		gp.mu.Lock()
 		gp.playing = false
 		gp.mu.Unlock()
-		refreshPanel(session, gp.guildID)
+		go refreshPanel(session, gp.guildID)
 	}()
 
 	for {
-		if gp.isStopping() || isHalted() {
+		if botHalted() {
 			return
 		}
 
@@ -329,11 +337,13 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		track := next
 		gp.mu.Unlock()
 
+		go refreshPanel(session, gp.guildID)
+
 		if trackNeedsDownload(track) {
 			query := trackSearchQuery(track)
 			sendPlain(session, channelID, "Downloading: **"+query+"**…")
 			resolved, err := searchYouTube(query)
-			if gp.isStopping() || isHalted() {
+			if botHalted() {
 				return
 			}
 			if err != nil || resolved == nil {
@@ -349,36 +359,23 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 			gp.mu.Lock()
 			gp.current = &track
 			gp.mu.Unlock()
-			refreshPanel(session, gp.guildID)
-		}
-
-		if gp.isStopping() {
-			return
+			go refreshPanel(session, gp.guildID)
 		}
 
 		gp.mu.Lock()
 		vc := gp.vc
 		gp.mu.Unlock()
-		if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
-			if err := gp.connect(session, VoiceChannelID); err != nil {
-				botLogError("voice connect failed: %v", err)
-				sendPlain(session, channelID, "Voice connection not ready.")
-				return
-			}
+		if vc == nil {
+			botLogError("no voice connection for playback")
+			sendPlain(session, channelID, "Not connected to voice channel.")
 			gp.mu.Lock()
-			vc = gp.vc
+			gp.current = nil
 			gp.mu.Unlock()
-		}
-		if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
-			botLog("voice not ready (status=%v)", vc)
-			sendPlain(session, channelID, "Voice connection not ready.")
 			return
 		}
 
-		gp.prefetchNext()
-
 		if err := gp.playCurrentTrack(session, vc, track, volume); err != nil {
-			if gp.isStopping() {
+			if botHalted() {
 				return
 			}
 			botLog("playback error for %s: %v", track.Title, err)
@@ -403,7 +400,7 @@ func (gp *GuildPlayer) playCurrentTrack(session *discordgo.Session, vc *discordg
 		if !interrupted {
 			return err
 		}
-		refreshPanel(session, gp.guildID)
+		go refreshPanel(session, gp.guildID)
 	}
 }
 
@@ -458,7 +455,7 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 	framesSent := 0
 	const frameDur = 0.02
 	for {
-		if gp.isStopping() {
+		if botHalted() {
 			return nil
 		}
 
@@ -485,21 +482,15 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 
 		frame, err := encode.OpusFrame()
 		if err != nil {
-			if err == io.EOF {
+		if err == io.EOF {
 				if framesSent == 0 {
 					if msg := encode.FFMPEGMessages(); msg != "" {
 						botLog("ffmpeg output:\n%s", msg)
-					}
-					if encErr := encode.Error(); encErr != nil {
-						botLog("encode error: %v", encErr)
 					}
 					return fmt.Errorf("no audio frames encoded")
 				}
 				botLog("Finished track: %s (%d frames)", track.Title, framesSent)
 				return nil
-			}
-			if msg := encode.FFMPEGMessages(); msg != "" {
-				botLog("ffmpeg output:\n%s", msg)
 			}
 			botLog("opus frame error: %v", err)
 			return err
@@ -513,7 +504,7 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 		gp.mu.Unlock()
 
 		if framesSent%50 == 0 {
-			refreshPanel(dgSession, gp.guildID)
+			go refreshPanel(dgSession, gp.guildID)
 		}
 
 		select {
@@ -548,11 +539,7 @@ func (gp *GuildPlayer) playPrevious(session *discordgo.Session, channelID string
 }
 
 func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
-	gp.mu.Lock()
-	gp.stopping = true
-	gp.mu.Unlock()
-
-	killActiveDownload()
+	killAllDownloads()
 	gp.stopPlaybackNow()
 	gp.setStayInChannel(false)
 	gp.clearQueue()
@@ -561,12 +548,12 @@ func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
 	gp.mu.Lock()
 	gp.current = nil
 	gp.playing = false
-	gp.prefetching = false
+	gp.stopPlayback = make(chan struct{}, 1)
 	gp.mu.Unlock()
 
-	gp.disconnect()
+	go gp.disconnect()
 
 	if channelID != "" {
-		sendPlain(session, channelID, "Stopped.")
+		go sendPlain(session, channelID, "Stopped.")
 	}
 }

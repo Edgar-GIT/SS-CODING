@@ -144,25 +144,33 @@ func handleHelp(session *discordgo.Session, channelID string) {
 
 func handlePlayMusic(session *discordgo.Session, channelID, guildID string, author *discordgo.User, query string) {
 	if query == "" {
-		sendPlain(session, channelID, "⚠️ Provide a song name.")
+		sendPlain(session, channelID, "Provide a song name.")
 		return
 	}
 
-	track, err := searchYouTube(query)
-	if err != nil || track == nil {
-		sendPlain(session, channelID, "❌ Music not found.")
-		return
-	}
+	sendPlain(session, channelID, "Searching YouTube for: **"+query+"**…")
 
-	pendingMu.Lock()
-	pending[author.ID] = &pendingTrack{Track: track, UserID: author.ID, ChannelID: channelID, GuildID: guildID}
-	pendingMu.Unlock()
+	go func() {
+		track, err := searchYouTube(query)
+		if botHalted() {
+			return
+		}
+		if err != nil || track == nil {
+			botLogError("playmusic search failed: %v", err)
+			sendPlain(session, channelID, "Music not found.")
+			return
+		}
 
-	_, _ = session.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
-		Content:    fmt.Sprintf("<@%s>, is this the music you were looking for?", author.ID),
-		Embed:      buildPreviewEmbed(track),
-		Components: confirmComponents(author.ID),
-	})
+		pendingMu.Lock()
+		pending[author.ID] = &pendingTrack{Track: track, UserID: author.ID, ChannelID: channelID, GuildID: guildID}
+		pendingMu.Unlock()
+
+		_, _ = session.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+			Content:    fmt.Sprintf("<@%s>, is this the music you were looking for?", author.ID),
+			Embed:      buildPreviewEmbed(track),
+			Components: confirmComponents(author.ID),
+		})
+	}()
 }
 
 func handlePlaySC(session *discordgo.Session, channelID, guildID string, author *discordgo.User, query string, direct bool) {
@@ -291,12 +299,21 @@ func handleQueuePlaylist(session *discordgo.Session, channelID, guildID string, 
 func startPlayback(session *discordgo.Session, channelID, guildID string, _ *discordgo.User) {
 	gp := getPlayer(guildID)
 	gp.setTextChannel(channelID)
-	if err := gp.connect(session, VoiceChannelID); err != nil {
-		sendPlain(session, channelID, "❌ Could not connect to voice channel.")
-		return
-	}
-	gp.startIfIdle(session, channelID)
-	sendOrUpdatePanel(session, gp, channelID)
+
+	go func() {
+		if botHalted() {
+			return
+		}
+		sendPlain(session, channelID, "Connecting to voice channel…")
+		if err := gp.connect(session, VoiceChannelID); err != nil {
+			botLogError("startPlayback connect: %v", err)
+			sendPlain(session, channelID, "Could not connect to voice channel.")
+			return
+		}
+		gp.kickPlayback(session, channelID)
+		time.Sleep(500 * time.Millisecond)
+		sendOrUpdatePanel(session, gp, channelID)
+	}()
 }
 
 func handleShowQueue(session *discordgo.Session, channelID, guildID string) {
@@ -385,106 +402,111 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 
 	switch {
 	case customID == "music_pause":
-		handlePause(session, interaction, gp)
+		gp.mu.Lock()
+		vc := gp.vc
+		gp.mu.Unlock()
+		if vc == nil {
+			replyEphemeral(session, interaction, "Nothing is playing.")
+			break
+		}
+		if gp.togglePause() {
+			runAfterReply(session, interaction, "Paused", func() { refreshPanel(session, guildID) })
+		} else {
+			runAfterReply(session, interaction, "Resumed", func() { refreshPanel(session, guildID) })
+		}
 	case customID == "music_skip":
-		gp.skip(session, channelID)
-		replyEphemeral(session, interaction, "⏭ Skipped")
-		refreshPanel(session, guildID)
+		runAfterReply(session, interaction, "Skipped", func() {
+			gp.skip(session, channelID)
+			refreshPanel(session, guildID)
+		})
 	case customID == "music_stop":
-		replyEphemeral(session, interaction, "Stopping…")
-		go func() {
+		runAfterReply(session, interaction, "Stopped.", func() {
 			gp.stopAll(session, channelID)
 			refreshPanel(session, guildID)
-		}()
+		})
 	case customID == "music_loop":
 		enabled := gp.toggleLoop()
-		replyEphemeral(session, interaction, "🔁 Loop "+onOff(enabled))
-		refreshPanel(session, guildID)
+		runAfterReply(session, interaction, "Loop "+onOff(enabled), func() { refreshPanel(session, guildID) })
 	case customID == "music_stay":
 		enabled := !gp.stayInChannelEnabled()
 		gp.setStayInChannel(enabled)
+		msg := "Stay disabled."
 		if enabled {
-			replyEphemeral(session, interaction, "📌 Stay enabled — bot stays when queue ends.")
-		} else {
-			replyEphemeral(session, interaction, "📌 Stay disabled.")
+			msg = "Stay enabled."
 		}
-		refreshPanel(session, guildID)
+		runAfterReply(session, interaction, msg, func() { refreshPanel(session, guildID) })
 	case customID == "music_vol_down":
 		value := gp.adjustVolume(-0.05)
-		replyEphemeral(session, interaction, fmt.Sprintf("🔉 Volume: %d%%", int(value*100)))
-		refreshPanel(session, guildID)
+		runAfterReply(session, interaction, fmt.Sprintf("Volume: %d%%", int(value*100)), func() { refreshPanel(session, guildID) })
 	case customID == "music_rewind":
 		if gp.seekBy(-5) {
-			replyEphemeral(session, interaction, "⏪ -5 seconds")
+			replyEphemeral(session, interaction, "-5 seconds")
 		} else {
-			replyEphemeral(session, interaction, "🚫 Nothing is playing.")
+			replyEphemeral(session, interaction, "Nothing is playing.")
 		}
 	case customID == "music_forward":
 		if gp.seekBy(5) {
-			replyEphemeral(session, interaction, "⏩ +5 seconds")
+			replyEphemeral(session, interaction, "+5 seconds")
 		} else {
-			replyEphemeral(session, interaction, "🚫 Nothing is playing.")
+			replyEphemeral(session, interaction, "Nothing is playing.")
 		}
 	case customID == "music_vol_up":
 		value := gp.adjustVolume(0.05)
-		replyEphemeral(session, interaction, fmt.Sprintf("🔊 Volume: %d%%", int(value*100)))
-		refreshPanel(session, guildID)
+		runAfterReply(session, interaction, fmt.Sprintf("Volume: %d%%", int(value*100)), func() { refreshPanel(session, guildID) })
 	case customID == "music_prev":
 		if gp.playPrevious(session, channelID) {
-			replyEphemeral(session, interaction, "▶ Playing previous song.")
+			runAfterReply(session, interaction, "Playing previous song.", func() { refreshPanel(session, guildID) })
 		} else {
-			replyEphemeral(session, interaction, "🚫 No previous song.")
+			replyEphemeral(session, interaction, "No previous song.")
 		}
-		refreshPanel(session, guildID)
 	case customID == "music_next":
 		gp.mu.Lock()
 		hasQueue := len(gp.queue) > 0
 		gp.mu.Unlock()
 		if hasQueue {
-			gp.skip(session, channelID)
-			replyEphemeral(session, interaction, "▶ Playing next song.")
+			runAfterReply(session, interaction, "Playing next song.", func() {
+				gp.skip(session, channelID)
+				refreshPanel(session, guildID)
+			})
 		} else {
-			replyEphemeral(session, interaction, "🚫 No more songs in the queue.")
+			replyEphemeral(session, interaction, "No more songs in the queue.")
 		}
-		refreshPanel(session, guildID)
 	case customID == "music_vote_skip":
 		ok, current, required, skipped, msg := gp.voteSkip(session, channelID, userID)
 		if !ok {
-			replyEphemeral(session, interaction, "⚠️ "+msg)
+			replyEphemeral(session, interaction, msg)
 		} else if skipped {
-			replyEphemeral(session, interaction, fmt.Sprintf("⏭ Skip passed (%d/%d)!", current, required))
-			refreshPanel(session, guildID)
+			runAfterReply(session, interaction, fmt.Sprintf("Skip passed (%d/%d)!", current, required), func() { refreshPanel(session, guildID) })
 		} else {
-			replyEphemeral(session, interaction, fmt.Sprintf("🗳️ Vote %d/%d", current, required))
+			replyEphemeral(session, interaction, fmt.Sprintf("Vote %d/%d", current, required))
 		}
 	case customID == "music_shuffle":
 		n := gp.shuffleQueue()
 		if n < 2 {
 			replyEphemeral(session, interaction, "Need 2+ songs to shuffle.")
 		} else {
-			replyEphemeral(session, interaction, fmt.Sprintf("🔀 Shuffled %d songs.", n))
-			refreshPanel(session, guildID)
+			runAfterReply(session, interaction, fmt.Sprintf("Shuffled %d songs.", n), func() { refreshPanel(session, guildID) })
 		}
 	case customID == "music_clear_queue":
-		gp.clearQueue()
-		replyEphemeral(session, interaction, "🗑️ Queue cleared.")
-		refreshPanel(session, guildID)
+		runAfterReply(session, interaction, "Queue cleared.", func() {
+			gp.clearQueue()
+			refreshPanel(session, guildID)
+		})
 	case customID == "music_view_queue":
 		replyEphemeralEmbed(session, interaction, buildQueueEmbed(gp))
 	case customID == "music_replay_last":
 		if gp.replayLast(session, channelID) {
-			replyEphemeral(session, interaction, "🔂 Replaying last song.")
-			refreshPanel(session, guildID)
+			runAfterReply(session, interaction, "Replaying last song.", func() { refreshPanel(session, guildID) })
 		} else {
-			replyEphemeral(session, interaction, "🚫 No previous song.")
+			replyEphemeral(session, interaction, "No previous song.")
 		}
 	case customID == "music_lyrics":
 		current, _, _, _, _, _ := gp.snapshot()
 		if current == nil {
-			replyEphemeral(session, interaction, "🚫 Nothing is playing.")
+			replyEphemeral(session, interaction, "Nothing is playing.")
 		} else {
-			replyEphemeral(session, interaction, fmt.Sprintf("📝 Fetching lyrics for **%s**…", current.Title))
-			handleLyrics(session, channelID, guildID, "")
+			replyEphemeral(session, interaction, fmt.Sprintf("Fetching lyrics for **%s**…", current.Title))
+			go handleLyrics(session, channelID, guildID, "")
 		}
 	case strings.HasPrefix(customID, "music_confirm_yes_"):
 		handleConfirmYes(session, interaction, userID, channelID, guildID)
@@ -493,25 +515,9 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 	}
 }
 
-func handlePause(session *discordgo.Session, interaction *discordgo.InteractionCreate, gp *GuildPlayer) {
-	gp.mu.Lock()
-	vc := gp.vc
-	gp.mu.Unlock()
-	if vc == nil {
-		replyEphemeral(session, interaction, "🚫 Nothing is playing.")
-		return
-	}
-	if gp.togglePause() {
-		replyEphemeral(session, interaction, "⏸ Paused")
-	} else {
-		replyEphemeral(session, interaction, "▶ Resumed")
-	}
-	refreshPanel(session, gp.guildID)
-}
-
 func handleConfirmYes(session *discordgo.Session, interaction *discordgo.InteractionCreate, userID, channelID, guildID string) {
 	if !strings.HasSuffix(interaction.MessageComponentData().CustomID, userID) {
-		replyEphemeral(session, interaction, "⚠️ Only the requester can confirm.")
+		replyEphemeral(session, interaction, "Only the requester can confirm.")
 		return
 	}
 	pendingMu.Lock()
@@ -519,30 +525,33 @@ func handleConfirmYes(session *discordgo.Session, interaction *discordgo.Interac
 	delete(pending, userID)
 	pendingMu.Unlock()
 	if item == nil || item.Track == nil {
-		replyEphemeral(session, interaction, "⌛ Request expired.")
+		replyEphemeral(session, interaction, "Request expired.")
 		return
 	}
 
 	gp := getPlayer(guildID)
 	gp.enqueue(*item.Track)
-	replyEphemeral(session, interaction, "➕ Added to the queue.")
-	sendPlain(session, channelID, "➕ Added to the queue: **"+item.Track.Title+"**")
+	replyEphemeral(session, interaction, "Added to the queue.")
 
-	member := interaction.Member
-	if member != nil {
-		startPlayback(session, channelID, guildID, member.User)
-	}
+	go func() {
+		sendPlain(session, channelID, "Added to the queue: **"+item.Track.Title+"**")
+		var author *discordgo.User
+		if interaction.Member != nil {
+			author = interaction.Member.User
+		}
+		startPlayback(session, channelID, guildID, author)
+	}()
 }
 
 func handleConfirmNo(session *discordgo.Session, interaction *discordgo.InteractionCreate, userID string) {
 	if !strings.HasSuffix(interaction.MessageComponentData().CustomID, userID) {
-		replyEphemeral(session, interaction, "⚠️ Only the requester can decline.")
+		replyEphemeral(session, interaction, "Only the requester can decline.")
 		return
 	}
 	pendingMu.Lock()
 	delete(pending, userID)
 	pendingMu.Unlock()
-	replyEphemeral(session, interaction, "❌ Music declined.")
+	replyEphemeral(session, interaction, "Music declined.")
 }
 
 func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpdate) {

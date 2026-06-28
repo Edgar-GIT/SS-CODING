@@ -77,7 +77,7 @@ func extractStream(target, mode string) (*Track, error) {
 }
 
 func downloadYouTube(query string) (*Track, error) {
-	if isHalted() {
+	if botHalted() {
 		return nil, fmt.Errorf("bot is stopping")
 	}
 
@@ -106,7 +106,7 @@ func downloadYouTube(query string) (*Track, error) {
 	}
 	cmd := exec.Command(ytdlp, args...)
 	if err := runDownloadCmd(cmd); err != nil {
-		if isHalted() {
+		if botHalted() {
 			return nil, fmt.Errorf("download cancelled")
 		}
 		return nil, fmt.Errorf("yt-dlp download: %w", err)

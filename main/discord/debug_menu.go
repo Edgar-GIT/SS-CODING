@@ -3,7 +3,9 @@ package discord
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	musicbot "ss-coding/discord/music_bot"
 	"ss-coding/utils"
 )
 
@@ -58,14 +60,31 @@ func startMusicBotDebug() {
 }
 
 func stopMusicBotDebug() {
-	if !MusicBotRunning() {
-		utils.PrintInfo("Music bot is not running")
-		utils.WaitEnter()
-		return
+	utils.PrintInfo("Force stopping music bot...")
+
+	type result struct {
+		logs string
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		logs, err := StopMusicBot()
+		done <- result{logs, err}
+	}()
+
+	var logs string
+	var err error
+	select {
+	case r := <-done:
+		logs, err = r.logs, r.err
+	case <-time.After(2 * time.Second):
+		logs = musicbot.SessionLogs()
+		if strings.TrimSpace(logs) == "" {
+			logs = "  (force stop — bot was not responding, killed downloads)"
+		}
+		err = fmt.Errorf("stop timed out; downloads were killed")
 	}
 
-	utils.PrintInfo("Stopping music bot...")
-	logs, err := StopMusicBot()
 	utils.ClearTerminal()
 	utils.PrintMenuHeader("Music Bot — Session Logs")
 	if err != nil {

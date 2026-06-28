@@ -3,7 +3,6 @@ package musicbot
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"ss-coding/discord/deps"
@@ -58,9 +57,11 @@ func Enable() error {
 	return nil
 }
 
+// Stop returns immediately; cleanup runs in the background.
 func Stop() (string, error) {
 	haltBot()
 	killAllDownloads()
+	pkillMediaProcesses()
 
 	musicMu.Lock()
 	session := musicSession
@@ -71,7 +72,7 @@ func Stop() (string, error) {
 		return "", fmt.Errorf("music bot is not running")
 	}
 
-	botLog("Music bot stopping...")
+	botLog("Music bot stopping (force)")
 
 	playersMu.Lock()
 	active := make([]*GuildPlayer, 0, len(players))
@@ -80,15 +81,13 @@ func Stop() (string, error) {
 	}
 	playersMu.Unlock()
 
-	for _, gp := range active {
-		gp.stopAll(session, "")
-	}
-
 	go func() {
+		for _, gp := range active {
+			gp.stopAll(session, "")
+		}
 		_ = session.Close()
 	}()
 
-	time.Sleep(300 * time.Millisecond)
 	logs := stopLogCapture()
 	return logs, nil
 }
