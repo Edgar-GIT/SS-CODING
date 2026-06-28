@@ -66,7 +66,7 @@ func (gp *GuildPlayer) replayLast(session *discordgo.Session, channelID string) 
 	if err := gp.connect(session, VoiceChannelID); err != nil {
 		return false
 	}
-	gp.startIfIdle(session, channelID)
+	gp.beginPlay(session, channelID)
 	return true
 }
 

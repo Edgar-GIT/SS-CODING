@@ -304,14 +304,15 @@ func startPlayback(session *discordgo.Session, channelID, guildID string, _ *dis
 		if botHalted() {
 			return
 		}
+		botLogInfo("startPlayback: queue=%d", gp.queueLen())
 		sendPlain(session, channelID, "Connecting to voice channel…")
 		if err := gp.connect(session, VoiceChannelID); err != nil {
 			botLogError("startPlayback connect: %v", err)
 			sendPlain(session, channelID, "Could not connect to voice channel.")
 			return
 		}
-		gp.kickPlayback(session, channelID)
-		time.Sleep(500 * time.Millisecond)
+		gp.beginPlay(session, channelID)
+		time.Sleep(800 * time.Millisecond)
 		sendOrUpdatePanel(session, gp, channelID)
 	}()
 }
@@ -532,15 +533,13 @@ func handleConfirmYes(session *discordgo.Session, interaction *discordgo.Interac
 	gp := getPlayer(guildID)
 	gp.enqueue(*item.Track)
 	replyEphemeral(session, interaction, "Added to the queue.")
+	sendPlain(session, channelID, "Added to the queue: **"+item.Track.Title+"**")
 
-	go func() {
-		sendPlain(session, channelID, "Added to the queue: **"+item.Track.Title+"**")
-		var author *discordgo.User
-		if interaction.Member != nil {
-			author = interaction.Member.User
-		}
-		startPlayback(session, channelID, guildID, author)
-	}()
+	var author *discordgo.User
+	if interaction.Member != nil {
+		author = interaction.Member.User
+	}
+	startPlayback(session, channelID, guildID, author)
 }
 
 func handleConfirmNo(session *discordgo.Session, interaction *discordgo.InteractionCreate, userID string) {

@@ -1,9 +1,14 @@
 package musicbot
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
+
+	"ss-coding/discord/deps"
 )
 
 var activeDownloads struct {
@@ -38,6 +43,23 @@ func killAllDownloads() {
 	activeDownloads.mu.Unlock()
 	for _, cmd := range cmds {
 		killProcessTree(cmd)
+	}
+}
+
+func cleanupStaleDownloads() {
+	dir := deps.DownloadsDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "temp_") && strings.HasSuffix(name, ".mp3") {
+			_ = os.Remove(filepath.Join(dir, name))
+		}
 	}
 }
 
