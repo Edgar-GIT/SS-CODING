@@ -3,6 +3,7 @@ package welcomebot
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -11,6 +12,17 @@ var (
 	welcomeMu      sync.Mutex
 	welcomeSession *discordgo.Session
 )
+
+func intentSetupHelp() string {
+	return `Welcome bot needs the "Server Members Intent" (privileged).
+
+In Discord Developer Portal (for THIS welcome bot app, not the music bot):
+  1. https://discord.com/developers/applications
+  2. Open your Welcome bot application
+  3. Bot → Privileged Gateway Intents
+  4. Enable "SERVER MEMBERS INTENT"
+  5. Save Changes, then restart the bot`
+}
 
 func Enable() error {
 	welcomeMu.Lock()
@@ -30,20 +42,38 @@ func Enable() error {
 		return err
 	}
 
-	session.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMembers
+	session.Identify.Intents = discordgo.IntentGuilds | discordgo.IntentGuildMembers
 	session.LogLevel = discordgo.LogInformational
 
 	startLogCapture()
 	botLog("Welcome bot starting...")
 
+	readyCh := make(chan error, 1)
+	session.AddHandler(func(_ *discordgo.Session, _ *discordgo.Ready) {
+		select {
+		case readyCh <- nil:
+		default:
+		}
+	})
+
 	registerHandlers(session)
 
 	if err := session.Open(); err != nil {
-		return err
+		return fmt.Errorf("%w\n\n%s", err, intentSetupHelp())
 	}
 
-	welcomeSession = session
-	return nil
+	select {
+	case err := <-readyCh:
+		if err != nil {
+			_ = session.Close()
+			return err
+		}
+		welcomeSession = session
+		return nil
+	case <-time.After(8 * time.Second):
+		_ = session.Close()
+		return fmt.Errorf("websocket: close 4014: Disallowed intent(s)\n\n%s", intentSetupHelp())
+	}
 }
 
 func Stop() error {
