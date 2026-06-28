@@ -1,6 +1,7 @@
 package musicbot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 type Track struct {
 	Title     string `json:"title"`
+	Query     string `json:"query,omitempty"` // original playlist/search text
 	Uploader  string `json:"uploader,omitempty"`
 	Thumbnail string `json:"thumbnail,omitempty"`
 	Duration  int    `json:"duration"`
@@ -30,10 +32,10 @@ func searchSoundCloud(query string) (*Track, error) {
 	if !strings.HasPrefix(query, "http://") && !strings.HasPrefix(query, "https://") {
 		target = "scsearch:" + query
 	}
-	return extractStream(target, "scsearch")
+	return extractStream(context.Background(), target, "scsearch")
 }
 
-func extractStream(target, mode string) (*Track, error) {
+func extractStream(ctx context.Context, target, mode string) (*Track, error) {
 	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
@@ -55,7 +57,7 @@ func extractStream(target, mode string) (*Track, error) {
 		args = append(args, target)
 	}
 
-	out, err := exec.Command(ytdlp, args...).Output()
+	out, err := exec.CommandContext(ctx, ytdlp, args...).Output()
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +112,7 @@ func downloadYouTube(query string) (*Track, error) {
 		filePath = matches[0]
 	}
 
-	meta, err := extractStream("ytsearch:"+query, "ytsearch")
+	meta, err := extractStream(context.Background(), "ytsearch:"+query, "ytsearch")
 	if err != nil {
 		meta = &Track{Title: query}
 	}
