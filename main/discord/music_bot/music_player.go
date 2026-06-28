@@ -40,6 +40,7 @@ type GuildPlayer struct {
 	skipVoters     map[string]struct{}
 	sessionCancel  context.CancelFunc
 	trackCancel    context.CancelFunc
+	prefetching    bool
 }
 
 var (
@@ -221,13 +222,18 @@ func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) err
 	if err != nil {
 		return err
 	}
-	// DAVE sender key is derived after the voice websocket handshake completes.
-	time.Sleep(3 * time.Second)
 	gp.mu.Lock()
 	gp.vc = vc
 	gp.voiceChannelID = channelID
 	gp.wantVoice = true
 	gp.mu.Unlock()
+
+	for i := 0; i < 50; i++ {
+		if vc.Status == discordgo.VoiceConnectionStatusReady {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	return nil
 }
 
@@ -240,9 +246,11 @@ func (gp *GuildPlayer) disconnect() {
 	gp.playing = false
 	gp.mu.Unlock()
 	if vc != nil && vc.Status != discordgo.VoiceConnectionStatusDead {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = vc.Disconnect(ctx)
-		cancel()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_ = vc.Disconnect(ctx)
+		}()
 	}
 }
 
@@ -263,9 +271,11 @@ func (gp *GuildPlayer) stopPlaybackNow() {
 
 func (gp *GuildPlayer) cancelSession() {
 	gp.stopPlaybackNow()
+	killAllDownloads()
 	gp.mu.Lock()
 	cancel := gp.sessionCancel
 	gp.sessionCancel = nil
+	gp.prefetching = false
 	gp.mu.Unlock()
 	if cancel != nil {
 		cancel()
@@ -352,55 +362,34 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 			}
 			if stay {
 				botLogInfo("Queue empty — staying in voice channel")
-				sendPlain(session, channelID, "✅ Queue empty. Staying in channel (`!stay off` to leave when idle).")
+				sendPlain(session, channelID, "Queue empty. Staying in channel (`!stay off` to leave when idle).")
 				return
 			}
 			gp.disconnect()
-			sendPlain(session, channelID, "✅ Playlist empty. Leaving channel.")
+			sendPlain(session, channelID, "Queue empty. Leaving voice channel.")
 			return
 		}
-		next := gp.queue[0]
-		gp.queue = gp.queue[1:]
-		gp.current = &next
+		gp.mu.Unlock()
+
+		trackCtx := gp.beginTrackCtx(sessionCtx)
+		track, ok := gp.takeNextReadyTrack(session, channelID, sessionCtx, trackCtx)
+		if !ok {
+			return
+		}
+		if !trackReady(track) {
+			continue
+		}
+
+		gp.mu.Lock()
+		gp.current = &track
 		gp.positionSec = 0
 		gp.playOffsetSec = 0
 		gp.resetSkipVotes()
 		volume := gp.volume
-		track := next
 		gp.mu.Unlock()
 
-		trackCtx := gp.beginTrackCtx(sessionCtx)
-
-		if track.URL == "" && track.FilePath == "" && (track.Title != "" || track.Query != "") {
-			query := track.Query
-			if query == "" {
-				query = track.Title
-			}
-			sendPlain(session, channelID, "🔍 Resolving: **"+query+"**…")
-			resolved, err := resolveQueuedTrack(trackCtx, query)
-			if err != nil {
-				if sessionStopped(sessionCtx) {
-					return
-				}
-				if sessionStopped(trackCtx) {
-					gp.mu.Lock()
-					gp.current = nil
-					gp.mu.Unlock()
-					continue
-				}
-				sendPlain(session, channelID, "❌ Could not find: "+query)
-				gp.mu.Lock()
-				gp.current = nil
-				gp.mu.Unlock()
-				continue
-			}
-			resolved.Query = query
-			track = *resolved
-			gp.mu.Lock()
-			gp.current = &track
-			gp.mu.Unlock()
-			refreshPanel(session, gp.guildID)
-		}
+		refreshPanel(session, gp.guildID)
+		go gp.prefetchQueueHead(sessionCtx)
 
 		if sessionStopped(sessionCtx) {
 			return
@@ -418,7 +407,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
 			if err := gp.connect(session, VoiceChannelID); err != nil {
 				botLogError("voice reconnect before play failed: %v", err)
-				sendPlain(session, channelID, "❌ Voice connection not ready.")
+				sendPlain(session, channelID, "Voice connection not ready.")
 				return
 			}
 			gp.mu.Lock()
@@ -427,7 +416,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		}
 		if vc == nil || vc.Status != discordgo.VoiceConnectionStatusReady {
 			botLog("voice not ready (status=%v)", vc)
-			sendPlain(session, channelID, "❌ Voice connection not ready.")
+			sendPlain(session, channelID, "Voice connection not ready.")
 			return
 		}
 
@@ -439,7 +428,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 				continue
 			}
 			botLog("playback error for %s: %v", track.Title, err)
-			sendPlain(session, channelID, "❌ Error playing music: "+err.Error())
+			sendPlain(session, channelID, "Playback error: "+err.Error())
 		}
 	}
 }
@@ -607,9 +596,11 @@ func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
 	gp.cleanupCurrentFile()
 	gp.mu.Lock()
 	gp.current = nil
+	gp.playing = false
+	gp.prefetching = false
 	gp.mu.Unlock()
 	gp.disconnect()
 	if channelID != "" {
-		sendPlain(session, channelID, "⏹ Stopped.")
+		sendPlain(session, channelID, "Stopped.")
 	}
 }

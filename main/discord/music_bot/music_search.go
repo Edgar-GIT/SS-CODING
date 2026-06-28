@@ -8,10 +8,45 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"ss-coding/discord/deps"
 )
+
+var (
+	downloadMu  sync.Mutex
+	downloadCmd []*exec.Cmd
+)
+
+func registerDownloadCmd(cmd *exec.Cmd) {
+	downloadMu.Lock()
+	downloadCmd = append(downloadCmd, cmd)
+	downloadMu.Unlock()
+}
+
+func unregisterDownloadCmd(cmd *exec.Cmd) {
+	downloadMu.Lock()
+	defer downloadMu.Unlock()
+	for i, c := range downloadCmd {
+		if c == cmd {
+			downloadCmd = append(downloadCmd[:i], downloadCmd[i+1:]...)
+			return
+		}
+	}
+}
+
+func killAllDownloads() {
+	downloadMu.Lock()
+	cmds := downloadCmd
+	downloadCmd = nil
+	downloadMu.Unlock()
+	for _, cmd := range cmds {
+		if cmd != nil && cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	}
+}
 
 type Track struct {
 	Title     string `json:"title"`
@@ -24,7 +59,7 @@ type Track struct {
 }
 
 func searchYouTube(query string) (*Track, error) {
-	return downloadYouTube(query)
+	return downloadYouTubeCtx(context.Background(), query)
 }
 
 func searchSoundCloud(query string) (*Track, error) {
@@ -81,6 +116,10 @@ func extractStream(ctx context.Context, target, mode string) (*Track, error) {
 }
 
 func downloadYouTube(query string) (*Track, error) {
+	return downloadYouTubeCtx(context.Background(), query)
+}
+
+func downloadYouTubeCtx(ctx context.Context, query string) (*Track, error) {
 	ytdlp, err := deps.YTDlpPath()
 	if err != nil {
 		return nil, err
@@ -100,7 +139,14 @@ func downloadYouTube(query string) (*Track, error) {
 		"-o", filePath,
 		"ytsearch:" + query,
 	}
-	if err := exec.Command(ytdlp, args...).Run(); err != nil {
+	cmd := exec.CommandContext(ctx, ytdlp, args...)
+	registerDownloadCmd(cmd)
+	defer unregisterDownloadCmd(cmd)
+
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
 	if _, err := os.Stat(filePath); err != nil {
@@ -112,25 +158,14 @@ func downloadYouTube(query string) (*Track, error) {
 		filePath = matches[0]
 	}
 
-	meta, err := extractStream(context.Background(), "ytsearch:"+query, "ytsearch")
+	meta, err := extractStream(ctx, "ytsearch:"+query, "ytsearch")
 	if err != nil {
-		meta = &Track{Title: query}
+		meta = &Track{Title: query, Query: query}
 	}
 	meta.FilePath = filePath
 	meta.URL = ""
+	meta.Query = query
 	return meta, nil
-}
-
-// resolveQueuedTrack resolves a title-only queue entry via streaming (fast, no full download).
-func resolveQueuedTrack(ctx context.Context, query string) (*Track, error) {
-	track, err := extractStream(ctx, "ytsearch:"+query, "ytsearch")
-	if err != nil {
-		return nil, err
-	}
-	if track.Query == "" {
-		track.Query = query
-	}
-	return track, nil
 }
 
 func pickAudioURL(payload map[string]any) string {

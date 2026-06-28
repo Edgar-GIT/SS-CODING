@@ -325,17 +325,17 @@ func handleStay(session *discordgo.Session, channelID, guildID, args string) {
 	switch arg {
 	case "on", "enable", "true", "1":
 		gp.setStayInChannel(true)
-		sendPlain(session, channelID, "📌 Stay mode **enabled** — bot stays in voice when queue is empty.")
+		sendPlain(session, channelID, "Stay mode **enabled** — bot stays in voice when the queue is empty.")
 	case "off", "disable", "false", "0":
 		gp.setStayInChannel(false)
-		sendPlain(session, channelID, "📌 Stay mode **disabled** — bot leaves when queue is empty.")
+		sendPlain(session, channelID, "Stay mode **disabled** — bot leaves when the queue is empty.")
 	default:
 		enabled := !gp.stayInChannelEnabled()
 		gp.setStayInChannel(enabled)
 		if enabled {
-			sendPlain(session, channelID, "📌 Stay mode **enabled**.")
+			sendPlain(session, channelID, "Stay mode **enabled**.")
 		} else {
-			sendPlain(session, channelID, "📌 Stay mode **disabled**.")
+			sendPlain(session, channelID, "Stay mode **disabled**.")
 		}
 	}
 	refreshPanel(session, guildID)
@@ -391,11 +391,11 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 		replyEphemeral(session, interaction, "⏭ Skipped")
 		refreshPanel(session, guildID)
 	case customID == "music_stop":
+		replyEphemeral(session, interaction, "Stopping…")
 		go func() {
 			gp.stopAll(session, channelID)
 			refreshPanel(session, guildID)
 		}()
-		replyEphemeral(session, interaction, "⏹ Stopping…")
 	case customID == "music_loop":
 		enabled := gp.toggleLoop()
 		replyEphemeral(session, interaction, "🔁 Loop "+onOff(enabled))

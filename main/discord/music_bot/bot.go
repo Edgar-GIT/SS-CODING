@@ -57,9 +57,10 @@ func Enable() error {
 
 func Stop() (string, error) {
 	musicMu.Lock()
-	defer musicMu.Unlock()
+	session := musicSession
+	musicMu.Unlock()
 
-	if musicSession == nil {
+	if session == nil {
 		return "", fmt.Errorf("music bot is not running")
 	}
 
@@ -73,11 +74,18 @@ func Stop() (string, error) {
 	playersMu.Unlock()
 
 	for _, gp := range active {
-		gp.stopAll(musicSession, "")
+		gp.stopAll(session, "")
+	}
+
+	musicMu.Lock()
+	defer musicMu.Unlock()
+	if musicSession == nil {
+		return stopLogCapture(), nil
 	}
 
 	if err := musicSession.Close(); err != nil {
 		logs := stopLogCapture()
+		musicSession = nil
 		return logs, err
 	}
 	musicSession = nil

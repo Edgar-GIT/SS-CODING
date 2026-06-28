@@ -200,19 +200,6 @@ func sendOrUpdatePanel(session *discordgo.Session, gp *GuildPlayer, channelID st
 	}
 }
 
-func refreshPanel(session *discordgo.Session, guildID string) {
-	gp := getPlayer(guildID)
-	channelID, messageID := gp.panelRef()
-	if channelID == "" || messageID == "" {
-		return
-	}
-	embed := buildPanelEmbed(gp)
-	components := panelComponents()
-	_, _ = session.ChannelMessageEditComplex(&discordgo.MessageEdit{
-		Channel: channelID, ID: messageID, Embed: embed, Components: &components,
-	})
-}
-
 func buildPreviewEmbed(track *Track) *discordgo.MessageEmbed {
 	embed := &discordgo.MessageEmbed{
 		Title: track.Title,

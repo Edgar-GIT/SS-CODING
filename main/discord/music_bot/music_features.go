@@ -172,13 +172,13 @@ func (gp *GuildPlayer) reconnectVoice(session *discordgo.Session, voiceChannelID
 		}
 		botLogInfo("Voice reconnected to channel %s", voiceChannelID)
 		if textChannelID != "" {
-			sendPlain(session, textChannelID, "🔌 Reconnected to voice channel.")
+			sendPlain(session, textChannelID, "Reconnected to voice channel.")
 		}
 		return
 	}
 	botLogError("Voice reconnect gave up after 3 attempts")
 	if textChannelID != "" {
-		sendPlain(session, textChannelID, "❌ Lost voice connection and could not reconnect.")
+		sendPlain(session, textChannelID, "Lost voice connection and could not reconnect.")
 	}
 }
 
