@@ -174,6 +174,18 @@ func button(id, label string, style discordgo.ButtonStyle) discordgo.Button {
 	return discordgo.Button{CustomID: id, Label: label, Style: style}
 }
 
+func sendNewPanel(session *discordgo.Session, gp *GuildPlayer, channelID string) {
+	embed := buildPanelEmbed(gp)
+	components := panelComponents()
+	msg, err := session.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+		Embed:      embed,
+		Components: components,
+	})
+	if err == nil {
+		gp.setPanel(msg.ChannelID, msg.ID)
+	}
+}
+
 func sendOrUpdatePanel(session *discordgo.Session, gp *GuildPlayer, channelID string) {
 	embed := buildPanelEmbed(gp)
 	components := panelComponents()

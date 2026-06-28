@@ -62,6 +62,9 @@ func Stop() (string, error) {
 	haltBot()
 	killAllDownloads()
 	pkillMediaProcesses()
+	if n := cleanupAllDownloads(); n > 0 {
+		botLogInfo("Removed %d music file(s) from downloads", n)
+	}
 
 	musicMu.Lock()
 	session := musicSession
@@ -84,6 +87,14 @@ func Stop() (string, error) {
 	go func() {
 		for _, gp := range active {
 			gp.stopAll(session, "")
+		}
+		playersMu.Lock()
+		for id := range players {
+			delete(players, id)
+		}
+		playersMu.Unlock()
+		if n := cleanupAllDownloads(); n > 0 {
+			botLogInfo("Removed %d leftover music file(s)", n)
 		}
 		_ = session.Close()
 	}()

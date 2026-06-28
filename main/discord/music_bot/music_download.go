@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -46,21 +45,28 @@ func killAllDownloads() {
 	}
 }
 
-func cleanupStaleDownloads() {
+func cleanupAllDownloads() int {
 	dir := deps.DownloadsDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return
+		if !os.IsNotExist(err) {
+			botLogWarn("cleanup downloads: %v", err)
+		}
+		return 0
 	}
+	removed := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		name := entry.Name()
-		if strings.HasPrefix(name, "temp_") && strings.HasSuffix(name, ".mp3") {
-			_ = os.Remove(filepath.Join(dir, name))
+		path := filepath.Join(dir, entry.Name())
+		if err := os.Remove(path); err != nil {
+			botLogWarn("cleanup: could not remove %s: %v", path, err)
+			continue
 		}
+		removed++
 	}
+	return removed
 }
 
 func prepareCmd(cmd *exec.Cmd) {

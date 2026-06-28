@@ -140,6 +140,13 @@ func (gp *GuildPlayer) setPanel(channelID, messageID string) {
 	gp.mu.Unlock()
 }
 
+func (gp *GuildPlayer) clearPanel() {
+	gp.mu.Lock()
+	gp.panelChannelID = ""
+	gp.panelMessageID = ""
+	gp.mu.Unlock()
+}
+
 func (gp *GuildPlayer) panelRef() (string, string) {
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
@@ -225,6 +232,10 @@ func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) err
 		_ = vc.Disconnect(ctx)
 		return err
 	}
+	if err := waitVoiceReady(vc, 15*time.Second); err != nil {
+		_ = vc.Disconnect(ctx)
+		return err
+	}
 
 	gp.mu.Lock()
 	gp.vc = vc
@@ -246,6 +257,13 @@ func (gp *GuildPlayer) disconnect() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = vc.Disconnect(ctx)
 		cancel()
+	}
+}
+
+func drainStopSignal(ch <-chan struct{}) {
+	select {
+	case <-ch:
+	default:
 	}
 }
 
@@ -274,17 +292,30 @@ func (gp *GuildPlayer) queueLen() int {
 }
 
 func (gp *GuildPlayer) beginPlay(session *discordgo.Session, channelID string) {
-	gp.stopPlaybackNow()
 	gp.mu.Lock()
+	select {
+	case gp.stopPlayback <- struct{}{}:
+	default:
+	}
+	if gp.vc != nil {
+		gp.vc.Speaking(false)
+	}
 	gp.playing = false
 	gp.playGen++
 	gen := gp.playGen
+	gp.stopPlayback = make(chan struct{}, 1)
 	gp.mu.Unlock()
 	botLogInfo("beginPlay: gen=%d queue=%d", gen, gp.queueLen())
 	go gp.playNext(session, channelID, gen)
 }
 
 func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string, gen uint64) {
+	defer func() {
+		if r := recover(); r != nil {
+			botLogError("playNext panic gen=%d: %v", gen, r)
+		}
+	}()
+
 	gp.mu.Lock()
 	if gp.playGen != gen {
 		gp.mu.Unlock()
@@ -348,7 +379,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string, ge
 		gp.current = &trackCopy
 		gp.positionSec = 0
 		gp.playOffsetSec = 0
-		gp.resetSkipVotes()
+		gp.skipVoters = nil
 		volume := gp.volume
 		gp.mu.Unlock()
 
@@ -468,7 +499,7 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 
 	options := *dca.StdEncodeOptions
 	options.Volume = int(volume * 256)
-	options.RawOutput = false
+	options.RawOutput = true
 	options.StartTime = int(startSec)
 
 	gp.mu.Lock()
@@ -486,6 +517,7 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 	defer vc.Speaking(false)
 
 	stop := gp.stopPlayback
+	drainStopSignal(stop)
 	framesSent := 0
 	const frameDur = 0.02
 	for {
@@ -495,6 +527,7 @@ func (gp *GuildPlayer) streamTrack(dgSession *discordgo.Session, vc *discordgo.V
 
 		select {
 		case <-stop:
+			botLogInfo("streamTrack: stop signal (%d frames sent)", framesSent)
 			return nil
 		default:
 		}
@@ -579,13 +612,15 @@ func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
 	gp.setStayInChannel(false)
 	gp.clearQueue()
 	gp.cleanupCurrentFile()
-	cleanupStaleDownloads()
+	cleanupAllDownloads()
 
 	gp.mu.Lock()
 	gp.current = nil
 	gp.playing = false
 	gp.playGen++
 	gp.stopPlayback = make(chan struct{}, 1)
+	gp.panelChannelID = ""
+	gp.panelMessageID = ""
 	gp.mu.Unlock()
 
 	go gp.disconnect()
