@@ -1,4 +1,4 @@
-package welcomebot
+package mainbot
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ func (b *logBuffer) formatted() string {
 	}
 	var out strings.Builder
 	out.WriteString("═══════════════════════════════════════\n")
-	out.WriteString("  WELCOME BOT — SESSION LOG\n")
+	out.WriteString("  MAIN BOT — SESSION LOG\n")
 	out.WriteString("═══════════════════════════════════════\n\n")
 	for _, line := range b.lines {
 		out.WriteString(fmt.Sprintf("[%s] %-5s %s\n",

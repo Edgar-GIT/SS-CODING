@@ -13,7 +13,7 @@ func printDebugMenu() {
 	utils.PrintMenuHeader("Discord Debug Mode")
 	printBotStatus()
 	utils.PrintMenuOption("1", "Music bot")
-	utils.PrintMenuOption("2", "Welcome bot")
+	utils.PrintMenuOption("2", "Main bot")
 	utils.PrintMenuOption("0", "Back")
 	utils.PrintDivider()
 	fmt.Println()
@@ -32,9 +32,9 @@ func printMusicDebugMenu() {
 	fmt.Println()
 }
 
-func printWelcomeDebugMenu() {
-	utils.PrintMenuHeader("Welcome Bot Debug")
-	if WelcomeBotRunning() {
+func printMainDebugMenu() {
+	utils.PrintMenuHeader("Main Bot Debug")
+	if MainBotRunning() {
 		fmt.Println(utils.HiGreen.Apply("  ● Running"))
 		fmt.Println()
 	}
@@ -100,28 +100,28 @@ func stopMusicBotDebug() {
 	utils.WaitEnter()
 }
 
-func startWelcomeBotDebug() {
-	if WelcomeBotRunning() {
-		utils.PrintInfo("Welcome bot already running")
+func startMainBotDebug() {
+	if MainBotRunning() {
+		utils.PrintInfo("Main bot already running")
 		return
 	}
-	utils.PrintInfo("Starting welcome bot...")
-	if err := EnableWelcomeBot(); err != nil {
+	utils.PrintInfo("Starting main bot...")
+	if err := EnableMainBot(); err != nil {
 		utils.PrintError(err.Error())
 		utils.WaitEnter()
 		return
 	}
-	utils.PrintSuccess("Welcome bot online")
+	utils.PrintSuccess("Main bot online")
 }
 
-func stopWelcomeBotDebug() {
-	if !WelcomeBotRunning() {
-		utils.PrintInfo("Welcome bot is not running")
+func stopMainBotDebug() {
+	if !MainBotRunning() {
+		utils.PrintInfo("Main bot is not running")
 		utils.WaitEnter()
 		return
 	}
-	utils.PrintInfo("Stopping welcome bot...")
-	if err := StopWelcomeBot(); err != nil {
+	utils.PrintInfo("Stopping main bot...")
+	if err := StopMainBot(); err != nil {
 		utils.PrintError(err.Error())
 	}
 	utils.WaitEnter()
@@ -144,15 +144,15 @@ func runMusicDebugMenu() {
 	}
 }
 
-func runWelcomeDebugMenu() {
+func runMainDebugMenu() {
 	for {
 		utils.ClearTerminal()
-		printWelcomeDebugMenu()
+		printMainDebugMenu()
 		switch utils.ReadChoice("Select an option: ") {
 		case "1":
-			startWelcomeBotDebug()
+			startMainBotDebug()
 		case "2":
-			stopWelcomeBotDebug()
+			stopMainBotDebug()
 		case "0":
 			return
 		default:
@@ -169,7 +169,7 @@ func runDebugMenu() {
 		case "1":
 			runMusicDebugMenu()
 		case "2":
-			runWelcomeDebugMenu()
+			runMainDebugMenu()
 		case "0":
 			return
 		default:

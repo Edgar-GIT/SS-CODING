@@ -1,4 +1,4 @@
-package welcomebot
+package mainbot
 
 import (
 	"fmt"
@@ -9,44 +9,49 @@ import (
 )
 
 var (
-	welcomeMu      sync.Mutex
-	welcomeSession *discordgo.Session
+	mainMu      sync.Mutex
+	mainSession *discordgo.Session
 )
 
 func intentSetupHelp() string {
-	return `Welcome bot needs the "Server Members Intent" (privileged).
+	return `Main bot needs privileged gateway intents.
 
-In Discord Developer Portal (for THIS welcome bot app, not the music bot):
+In Discord Developer Portal (for THIS main bot app):
   1. https://discord.com/developers/applications
-  2. Open your Welcome bot application
+  2. Open your Main bot application
   3. Bot → Privileged Gateway Intents
   4. Enable "SERVER MEMBERS INTENT"
-  5. Save Changes, then restart the bot`
+  5. Enable "MESSAGE CONTENT INTENT"
+  6. Save Changes, then restart the bot`
 }
 
 func Enable() error {
-	welcomeMu.Lock()
-	defer welcomeMu.Unlock()
+	mainMu.Lock()
+	defer mainMu.Unlock()
 
-	if welcomeSession != nil {
-		return fmt.Errorf("welcome bot already running")
+	if mainSession != nil {
+		return fmt.Errorf("main bot already running")
 	}
 
-	cfg, err := LoadWelcomeConfig()
+	cfg, err := LoadMainConfig()
 	if err != nil {
 		return err
 	}
+	_ = cfg
 
 	session, err := discordgo.New("Bot " + cfg.Token)
 	if err != nil {
 		return err
 	}
 
-	session.Identify.Intents = discordgo.IntentGuilds | discordgo.IntentGuildMembers
+	session.Identify.Intents = discordgo.IntentGuilds |
+		discordgo.IntentGuildMembers |
+		discordgo.IntentGuildMessages |
+		discordgo.IntentMessageContent
 	session.LogLevel = discordgo.LogInformational
 
 	startLogCapture()
-	botLog("Welcome bot starting...")
+	botLog("Main bot starting...")
 
 	readyCh := make(chan error, 1)
 	session.AddHandler(func(_ *discordgo.Session, _ *discordgo.Ready) {
@@ -68,7 +73,7 @@ func Enable() error {
 			_ = session.Close()
 			return err
 		}
-		welcomeSession = session
+		mainSession = session
 		return nil
 	case <-time.After(8 * time.Second):
 		_ = session.Close()
@@ -77,23 +82,23 @@ func Enable() error {
 }
 
 func Stop() error {
-	welcomeMu.Lock()
-	session := welcomeSession
-	welcomeSession = nil
-	welcomeMu.Unlock()
+	mainMu.Lock()
+	session := mainSession
+	mainSession = nil
+	mainMu.Unlock()
 
 	if session == nil {
-		return fmt.Errorf("welcome bot is not running")
+		return fmt.Errorf("main bot is not running")
 	}
 
-	botLog("Welcome bot stopping")
+	botLog("Main bot stopping")
 	_ = session.Close()
 	stopLogCapture()
 	return nil
 }
 
 func Running() bool {
-	welcomeMu.Lock()
-	defer welcomeMu.Unlock()
-	return welcomeSession != nil
+	mainMu.Lock()
+	defer mainMu.Unlock()
+	return mainSession != nil
 }

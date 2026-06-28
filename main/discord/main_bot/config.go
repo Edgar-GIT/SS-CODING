@@ -1,4 +1,4 @@
-package welcomebot
+package mainbot
 
 import (
 	"os"
@@ -8,12 +8,16 @@ import (
 )
 
 const (
+	commandPrefix    = "!"
 	WelcomeChannelID = "1520532948900643067"
 	RulesChannelID   = "1520572468081987835"
+	LogChannelID     = "1520570791169757204"
+	MusicChannelID   = "1520542863589376060"
 )
 
-type WelcomeConfig struct {
-	Token string
+type MainConfig struct {
+	Token   string
+	OwnerID string
 }
 
 func loadEnv() error {
@@ -35,11 +39,18 @@ func loadEnv() error {
 	return nil
 }
 
-func LoadWelcomeConfig() (WelcomeConfig, error) {
+func LoadMainConfig() (MainConfig, error) {
 	_ = loadEnv()
-	cfg := WelcomeConfig{Token: os.Getenv("WELCOME_TOKEN")}
+	token := os.Getenv("MAIN_TOKEN")
+	if token == "" {
+		token = os.Getenv("WELCOME_TOKEN")
+	}
+	cfg := MainConfig{
+		Token:   token,
+		OwnerID: os.Getenv("MAIN_OWNER_ID"),
+	}
 	if cfg.Token == "" {
-		return cfg, errMissingToken("WELCOME_TOKEN")
+		return cfg, errMissingToken("MAIN_TOKEN")
 	}
 	return cfg, nil
 }

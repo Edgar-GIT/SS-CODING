@@ -18,10 +18,10 @@ func printBotStatus() {
 	if MusicBotRunning() {
 		fmt.Println(utils.HiGreen.Apply("  ● Music bot running"))
 	}
-	if WelcomeBotRunning() {
-		fmt.Println(utils.HiGreen.Apply("  ● Welcome bot running"))
+	if MainBotRunning() {
+		fmt.Println(utils.HiGreen.Apply("  ● Main bot running"))
 	}
-	if MusicBotRunning() || WelcomeBotRunning() {
+	if MusicBotRunning() || MainBotRunning() {
 		fmt.Println()
 	}
 }
@@ -55,15 +55,15 @@ func launchAllBots() {
 		utils.PrintInfo("Music bot already running")
 	}
 
-	if !WelcomeBotRunning() {
-		utils.PrintInfo("Starting welcome bot...")
-		if err := EnableWelcomeBot(); err != nil {
+	if !MainBotRunning() {
+		utils.PrintInfo("Starting main bot...")
+		if err := EnableMainBot(); err != nil {
 			utils.PrintError(err.Error())
 			return
 		}
-		utils.PrintSuccess("Welcome bot online")
+		utils.PrintSuccess("Main bot online")
 	} else {
-		utils.PrintInfo("Welcome bot already running")
+		utils.PrintInfo("Main bot already running")
 	}
 }
 
