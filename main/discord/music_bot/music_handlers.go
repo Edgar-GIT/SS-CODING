@@ -82,27 +82,61 @@ func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreat
 		handleShowPlaylist(session, channelID, author.ID)
 	case "playlist":
 		handleQueuePlaylist(session, channelID, guildID, author)
+	case "queue":
+		handleShowQueue(session, channelID, guildID)
+	case "voteskip", "skipvote":
+		handleVoteSkip(session, channelID, guildID, author.ID)
+	case "stay":
+		handleStay(session, channelID, guildID, args)
+	case "replaylast":
+		handleReplayLast(session, channelID, guildID)
+	case "shuffle":
+		handleShuffle(session, channelID, guildID)
+	case "clearqueue":
+		handleClearQueue(session, channelID, guildID)
 	}
 }
 
 func handleHelp(session *discordgo.Session, channelID string) {
 	embed := &discordgo.MessageEmbed{
-		Title: "🎵 Music Bot Commands",
-		Color: panelColor,
+		Title:       "🎵 Music Bot Commands",
+		Color:       panelColor,
+		Description: "Use the control panel buttons or the commands below.",
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: commandPrefix + "playmusic <name>", Value: "Search and play music from YouTube", Inline: false},
-			{Name: "⏯ / ⏭ / ⏹ / ⬅ / ➡", Value: "Control music with the panel buttons", Inline: false},
-			{Name: "⏪ / ⏩", Value: "Seek backward or forward 5 seconds", Inline: false},
-			{Name: commandPrefix + "replay", Value: "Loop the current song", Inline: false},
-			{Name: commandPrefix + "stoploop", Value: "Stop looping", Inline: false},
-			{Name: commandPrefix + "lyrics <music>", Value: "Fetch lyrics", Inline: false},
-			{Name: commandPrefix + "volume <0-100>", Value: "Set bot volume", Inline: false},
-			{Name: commandPrefix + "createplaylist <name>", Value: "Create your personal playlist", Inline: false},
-			{Name: commandPrefix + "playlistadd <music>", Value: "Add music to your playlist", Inline: false},
-			{Name: commandPrefix + "showplaylist", Value: "Show your playlist", Inline: false},
-			{Name: commandPrefix + "playlist", Value: "Queue your playlist", Inline: false},
-			{Name: commandPrefix + "playsc <name>", Value: "Stream from SoundCloud search", Inline: false},
-			{Name: commandPrefix + "playscurl <url>", Value: "Stream a SoundCloud URL", Inline: false},
+			{Name: "▶ Playback", Value: strings.Join([]string{
+				commandPrefix + "playmusic <name> — Search YouTube (with confirm)",
+				commandPrefix + "playsc <name> — SoundCloud search",
+				commandPrefix + "playscurl <url> — SoundCloud URL",
+				commandPrefix + "replaylast — Replay last song",
+				commandPrefix + "replay — Loop current song",
+				commandPrefix + "stoploop — Disable loop",
+			}, "\n"), Inline: false},
+			{Name: "📋 Queue", Value: strings.Join([]string{
+				commandPrefix + "queue — Show full queue",
+				commandPrefix + "shuffle — Shuffle queue",
+				commandPrefix + "clearqueue — Clear queue (keeps current song)",
+				commandPrefix + "voteskip — Vote to skip (majority in voice)",
+			}, "\n"), Inline: false},
+			{Name: "🎛️ Panel buttons", Value: strings.Join([]string{
+				"⏯ Pause/Resume · ⏭ Skip · ⏹ Stop · 🔁 Loop",
+				"⏪ -5s · ⏩ +5s · 🔉/🔊 Volume",
+				"⬅ Prev · ➡ Next · 🔂 Replay Last",
+				"🗳️ Vote Skip · 🔀 Shuffle · 🗑️ Clear · 📋 View Queue",
+			}, "\n"), Inline: false},
+			{Name: "📌 Voice", Value: strings.Join([]string{
+				commandPrefix + "stay — Toggle stay in channel when queue ends",
+				commandPrefix + "stay on / stay off — Enable or disable stay",
+			}, "\n"), Inline: false},
+			{Name: "🔊 Other", Value: strings.Join([]string{
+				commandPrefix + "volume <0-100> — Set volume",
+				commandPrefix + "lyrics <song> — Fetch lyrics (Genius)",
+			}, "\n"), Inline: false},
+			{Name: "📂 Playlists", Value: strings.Join([]string{
+				commandPrefix + "createplaylist <name>",
+				commandPrefix + "playlistadd <song>",
+				commandPrefix + "showplaylist",
+				commandPrefix + "playlist — Queue your playlist",
+			}, "\n"), Inline: false},
 		},
 	}
 	_, _ = session.ChannelMessageSendEmbed(channelID, embed)
@@ -270,12 +304,83 @@ func handleQueuePlaylist(session *discordgo.Session, channelID, guildID string, 
 
 func startPlayback(session *discordgo.Session, channelID, guildID string, _ *discordgo.User) {
 	gp := getPlayer(guildID)
+	gp.setTextChannel(channelID)
 	if err := gp.connect(session, VoiceChannelID); err != nil {
 		sendPlain(session, channelID, "❌ Could not connect to voice channel.")
 		return
 	}
 	gp.startIfIdle(session, channelID)
 	sendOrUpdatePanel(session, gp, channelID)
+}
+
+func handleShowQueue(session *discordgo.Session, channelID, guildID string) {
+	gp := getPlayer(guildID)
+	_, _ = session.ChannelMessageSendEmbed(channelID, buildQueueEmbed(gp))
+}
+
+func handleVoteSkip(session *discordgo.Session, channelID, guildID, userID string) {
+	gp := getPlayer(guildID)
+	ok, current, required, skipped, msg := gp.voteSkip(session, channelID, userID)
+	if !ok {
+		sendPlain(session, channelID, "⚠️ "+msg)
+		return
+	}
+	if skipped {
+		sendPlain(session, channelID, fmt.Sprintf("⏭ Skip vote passed (%d/%d). Skipping...", current, required))
+		refreshPanel(session, guildID)
+		return
+	}
+	sendPlain(session, channelID, fmt.Sprintf("🗳️ Vote registered (%d/%d needed).", current, required))
+}
+
+func handleStay(session *discordgo.Session, channelID, guildID, args string) {
+	gp := getPlayer(guildID)
+	arg := strings.ToLower(strings.TrimSpace(args))
+	switch arg {
+	case "on", "enable", "true", "1":
+		gp.setStayInChannel(true)
+		sendPlain(session, channelID, "📌 Stay mode **enabled** — bot stays in voice when queue is empty.")
+	case "off", "disable", "false", "0":
+		gp.setStayInChannel(false)
+		sendPlain(session, channelID, "📌 Stay mode **disabled** — bot leaves when queue is empty.")
+	default:
+		enabled := !gp.stayInChannelEnabled()
+		gp.setStayInChannel(enabled)
+		if enabled {
+			sendPlain(session, channelID, "📌 Stay mode **enabled**.")
+		} else {
+			sendPlain(session, channelID, "📌 Stay mode **disabled**.")
+		}
+	}
+	refreshPanel(session, guildID)
+}
+
+func handleReplayLast(session *discordgo.Session, channelID, guildID string) {
+	gp := getPlayer(guildID)
+	if !gp.replayLast(session, channelID) {
+		sendPlain(session, channelID, "⚠️ No previous song to replay.")
+		return
+	}
+	sendPlain(session, channelID, "🔂 Replaying last song.")
+	sendOrUpdatePanel(session, gp, channelID)
+}
+
+func handleShuffle(session *discordgo.Session, channelID, guildID string) {
+	gp := getPlayer(guildID)
+	n := gp.shuffleQueue()
+	if n < 2 {
+		sendPlain(session, channelID, "⚠️ Need at least 2 songs in queue to shuffle.")
+		return
+	}
+	sendPlain(session, channelID, fmt.Sprintf("🔀 Shuffled %d songs in queue.", n))
+	refreshPanel(session, guildID)
+}
+
+func handleClearQueue(session *discordgo.Session, channelID, guildID string) {
+	gp := getPlayer(guildID)
+	gp.clearQueue()
+	sendPlain(session, channelID, "🗑️ Queue cleared.")
+	refreshPanel(session, guildID)
 }
 
 func onInteractionCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
@@ -345,6 +450,37 @@ func onInteractionCreate(session *discordgo.Session, interaction *discordgo.Inte
 			replyEphemeral(session, interaction, "🚫 No more songs in the queue.")
 		}
 		refreshPanel(session, guildID)
+	case customID == "music_vote_skip":
+		ok, current, required, skipped, msg := gp.voteSkip(session, channelID, userID)
+		if !ok {
+			replyEphemeral(session, interaction, "⚠️ "+msg)
+		} else if skipped {
+			replyEphemeral(session, interaction, fmt.Sprintf("⏭ Skip passed (%d/%d)!", current, required))
+			refreshPanel(session, guildID)
+		} else {
+			replyEphemeral(session, interaction, fmt.Sprintf("🗳️ Vote %d/%d", current, required))
+		}
+	case customID == "music_shuffle":
+		n := gp.shuffleQueue()
+		if n < 2 {
+			replyEphemeral(session, interaction, "Need 2+ songs to shuffle.")
+		} else {
+			replyEphemeral(session, interaction, fmt.Sprintf("🔀 Shuffled %d songs.", n))
+			refreshPanel(session, guildID)
+		}
+	case customID == "music_clear_queue":
+		gp.clearQueue()
+		replyEphemeral(session, interaction, "🗑️ Queue cleared.")
+		refreshPanel(session, guildID)
+	case customID == "music_view_queue":
+		replyEphemeralEmbed(session, interaction, buildQueueEmbed(gp))
+	case customID == "music_replay_last":
+		if gp.replayLast(session, channelID) {
+			replyEphemeral(session, interaction, "🔂 Replaying last song.")
+			refreshPanel(session, guildID)
+		} else {
+			replyEphemeral(session, interaction, "🚫 No previous song.")
+		}
 	case strings.HasPrefix(customID, "music_confirm_yes_"):
 		handleConfirmYes(session, interaction, userID, channelID, guildID)
 	case strings.HasPrefix(customID, "music_confirm_no_"):
@@ -405,9 +541,23 @@ func handleConfirmNo(session *discordgo.Session, interaction *discordgo.Interact
 }
 
 func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpdate) {
-	if vs.UserID == botUserID && vs.ChannelID == "" {
+	// Auto-reconnect when bot is kicked/disconnected from voice unexpectedly.
+	if vs.UserID == botUserID {
+		if vs.ChannelID == "" {
+			gp := getPlayer(vs.GuildID)
+			gp.mu.Lock()
+			want := gp.wantVoice
+			voiceCh := gp.voiceChannelID
+			textCh := gp.textChannelID
+			gp.vc = nil
+			gp.mu.Unlock()
+			if want && voiceCh != "" {
+				go gp.reconnectVoice(session, voiceCh, textCh)
+			}
+		}
 		return
 	}
+
 	if vs.ChannelID == "" {
 		return
 	}
@@ -415,21 +565,16 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 	gp.mu.Lock()
 	vc := gp.vc
 	voiceChannelID := gp.voiceChannelID
+	stay := gp.stayInChannel
 	gp.mu.Unlock()
 	if vc == nil || voiceChannelID != vs.ChannelID {
 		return
 	}
-
-	members := 0
-	guild, err := session.State.Guild(vs.GuildID)
-	if err != nil || guild == nil {
+	if stay {
 		return
 	}
-	for _, state := range guild.VoiceStates {
-		if state.ChannelID == voiceChannelID && state.UserID != botUserID {
-			members++
-		}
-	}
+
+	members := countVoiceMembers(session, vs.GuildID, voiceChannelID)
 	if members > 0 {
 		return
 	}
@@ -440,30 +585,14 @@ func onVoiceStateUpdate(session *discordgo.Session, vs *discordgo.VoiceStateUpda
 		gp.mu.Lock()
 		vc := gp.vc
 		voiceChannelID := gp.voiceChannelID
+		stay := gp.stayInChannel
 		gp.mu.Unlock()
-		if vc == nil {
+		if vc == nil || stay {
 			return
 		}
-		alone := 0
-		guild, err := session.State.Guild(guildID)
-		if err != nil || guild == nil {
-			return
-		}
-		for _, state := range guild.VoiceStates {
-			if state.ChannelID == voiceChannelID && state.UserID != botUserID {
-				alone++
-			}
-		}
-		if alone == 0 {
+		if countVoiceMembers(session, guildID, voiceChannelID) == 0 {
 			gp.stopAll(session, channelID)
-			botLog("💤 Auto-disconnected due to inactivity.")
+			botLogInfo("Auto-disconnected — channel empty for 30s")
 		}
 	}(vs.GuildID, "")
-}
-
-func onOff(enabled bool) string {
-	if enabled {
-		return "enabled"
-	}
-	return "disabled"
 }

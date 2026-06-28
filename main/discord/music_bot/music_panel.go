@@ -66,10 +66,18 @@ func buildPanelEmbed(gp *GuildPlayer) *discordgo.MessageEmbed {
 	}
 
 	embed.Fields = append(embed.Fields,
-		&discordgo.MessageEmbedField{Name: "🔊 Volume", Value: fmt.Sprintf("%d%%", int(volume*100)), Inline: false},
-		&discordgo.MessageEmbedField{Name: "🔁 Loop", Value: loopStatus(looping), Inline: false},
+		&discordgo.MessageEmbedField{Name: "🔊 Volume", Value: fmt.Sprintf("%d%%", int(volume*100)), Inline: true},
+		&discordgo.MessageEmbedField{Name: "🔁 Loop", Value: loopStatus(looping), Inline: true},
+		&discordgo.MessageEmbedField{Name: "📌 Stay", Value: onOff(gp.stayInChannelEnabled()), Inline: true},
 	)
 	return embed
+}
+
+func onOff(enabled bool) string {
+	if enabled {
+		return "On ✅"
+	}
+	return "Off ❌"
 }
 
 func loopStatus(enabled bool) string {
@@ -141,6 +149,13 @@ func panelComponents() []discordgo.MessageComponent {
 		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
 			button("music_prev", "⬅ Prev Song", discordgo.SecondaryButton),
 			button("music_next", "Next Song ➡", discordgo.SecondaryButton),
+			button("music_replay_last", "🔂 Replay Last", discordgo.SecondaryButton),
+		}},
+		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+			button("music_vote_skip", "🗳️ Vote Skip", discordgo.PrimaryButton),
+			button("music_shuffle", "🔀 Shuffle", discordgo.SecondaryButton),
+			button("music_clear_queue", "🗑️ Clear Queue", discordgo.DangerButton),
+			button("music_view_queue", "📋 View Queue", discordgo.SecondaryButton),
 		}},
 	}
 }
@@ -227,5 +242,12 @@ func replyEphemeral(session *discordgo.Session, interaction *discordgo.Interacti
 	_ = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{Content: content, Flags: discordgo.MessageFlagsEphemeral},
+	})
+}
+
+func replyEphemeralEmbed(session *discordgo.Session, interaction *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
+	_ = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}, Flags: discordgo.MessageFlagsEphemeral},
 	})
 }

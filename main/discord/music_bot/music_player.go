@@ -33,6 +33,11 @@ type GuildPlayer struct {
 	playOffsetSec  float64
 	seekInterrupt  bool
 	stopPlayback   chan struct{}
+	stayInChannel  bool
+	wantVoice      bool
+	reconnecting   bool
+	textChannelID  string
+	skipVoters     map[string]struct{}
 }
 
 var (
@@ -219,6 +224,7 @@ func (gp *GuildPlayer) connect(session *discordgo.Session, channelID string) err
 	gp.mu.Lock()
 	gp.vc = vc
 	gp.voiceChannelID = channelID
+	gp.wantVoice = true
 	gp.mu.Unlock()
 	return nil
 }
@@ -228,6 +234,7 @@ func (gp *GuildPlayer) disconnect() {
 	vc := gp.vc
 	gp.vc = nil
 	gp.voiceChannelID = ""
+	gp.wantVoice = false
 	gp.playing = false
 	gp.mu.Unlock()
 	if vc != nil && vc.Status != discordgo.VoiceConnectionStatusDead {
@@ -291,7 +298,13 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		}
 		if len(gp.queue) == 0 {
 			gp.current = nil
+			stay := gp.stayInChannel
 			gp.mu.Unlock()
+			if stay {
+				botLogInfo("Queue empty — staying in voice channel")
+				sendPlain(session, channelID, "✅ Queue empty. Staying in channel (`!stay off` to leave when idle).")
+				return
+			}
 			gp.disconnect()
 			sendPlain(session, channelID, "✅ Playlist empty. Leaving channel.")
 			return
@@ -301,6 +314,7 @@ func (gp *GuildPlayer) playNext(session *discordgo.Session, channelID string) {
 		gp.current = &next
 		gp.positionSec = 0
 		gp.playOffsetSec = 0
+		gp.resetSkipVotes()
 		vc := gp.vc
 		volume := gp.volume
 		track := next
@@ -491,6 +505,7 @@ func (gp *GuildPlayer) playPrevious(session *discordgo.Session, channelID string
 }
 
 func (gp *GuildPlayer) stopAll(session *discordgo.Session, channelID string) {
+	gp.setStayInChannel(false)
 	gp.clearQueue()
 	gp.cleanupCurrentFile()
 	gp.mu.Lock()
