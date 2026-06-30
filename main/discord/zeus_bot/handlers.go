@@ -128,6 +128,51 @@ func handleZeusLight(session *discordgo.Session, msg *discordgo.Message) {
 	_, _ = session.ChannelMessageSend(msg.ChannelID, "BEHOLD THE DIVINE LIGHT OF GOD!!")
 	_ = sendImage(session, msg.ChannelID, "zeuslight.png")
 	_, _ = session.ChannelMessageSend(msg.ChannelID, "MAY THE DIVINE LIGHT GUIDE YOU TO SALVATION!!")
+	go smiteEveryoneExceptZeus(session, msg.GuildID, msg.ChannelID, 150)
+}
+
+func smiteEveryoneExceptZeus(session *discordgo.Session, guildID, channelID string, seconds int) {
+	cfgMu.RLock()
+	zeusID := zeusCfg.ZeusID
+	cfgMu.RUnlock()
+
+	members, err := fetchAllMembers(session, guildID)
+	if err != nil {
+		botLogError("zeuslight fetchAllMembers: %v", err)
+		_, _ = session.ChannelMessageSend(channelID, "❌ Member list could not be obtained.")
+		return
+	}
+
+	until := time.Now().UTC().Add(time.Duration(seconds) * time.Second)
+	var punished int
+	for _, member := range members {
+		if member.User == nil || member.User.Bot || member.User.ID == zeusID {
+			continue
+		}
+		if err := session.GuildMemberTimeout(guildID, member.User.ID, &until); err != nil {
+			botLogError("zeuslight timeout %s: %v", member.User.ID, err)
+			continue
+		}
+		punished++
+	}
+
+	_, _ = session.ChannelMessageSend(channelID,fmt.Sprintf("⚡ %d mortals were silenced by the divine light for %d seconds!", punished, seconds))
+}
+func fetchAllMembers(session *discordgo.Session, guildID string) ([]*discordgo.Member, error) {
+	var all []*discordgo.Member
+	after := ""
+	for {
+		batch, err := session.GuildMembers(guildID, after, 1000)
+		if err != nil {
+			return all, err
+		}
+		all = append(all, batch...)
+		if len(batch) < 1000 {
+			break
+		}
+		after = batch[len(batch)-1].User.ID
+	}
+	return all, nil
 }
 
 func handleZeusBan(session *discordgo.Session, msg *discordgo.Message, args []string) {
