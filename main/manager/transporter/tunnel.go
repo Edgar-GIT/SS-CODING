@@ -62,7 +62,16 @@ func Start(port int) (string, error) {
 		return "", err
 	}
 
+	if err := ensureNgrokAuthToken(); err != nil {
+		StopLoggingProxy()
+		return "", err
+	}
+
 	cmd := exec.Command("ngrok", "http", fmt.Sprint(proxyPort), "--log=stdout")
+	token := ngrokAuthToken()
+	if token != "" {
+		cmd.Env = append(os.Environ(), "NGROK_AUTHTOKEN="+token, "NGROK_AUTH_TOKEN="+token)
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	utils.PrepareProcessGroup(cmd)
@@ -135,6 +144,50 @@ func waitForPublicURL(timeout time.Duration) (string, error) {
 	}
 
 	return "", fmt.Errorf("ngrok tunnel did not become ready in time")
+}
+
+func ngrokAuthToken() string {
+	token := os.Getenv("NGROK_AUTHTOKEN")
+	if token != "" {
+		return token
+	}
+	return os.Getenv("NGROK_AUTH_TOKEN")
+}
+
+func ensureNgrokAuthToken() error {
+	token := ngrokAuthToken()
+	if token == "" {
+		return nil
+	}
+
+	if err := configureNgrokAuthToken(token); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func configureNgrokAuthToken(token string) error {
+	cmd := exec.Command("ngrok", "config", "add-authtoken", token)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	utils.PrepareProcessGroup(cmd)
+
+	if err := cmd.Run(); err == nil {
+		return nil
+	}
+
+	// Fallback for older ngrok versions that use `authtoken` instead of `config add-authtoken`.
+	cmd = exec.Command("ngrok", "authtoken", token)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	utils.PrepareProcessGroup(cmd)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to configure ngrok auth token: %w", err)
+	}
+
+	return nil
 }
 
 func fetchPublicURL(client *http.Client) (string, error) {
