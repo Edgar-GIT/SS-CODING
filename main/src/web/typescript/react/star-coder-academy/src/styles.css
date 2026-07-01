@@ -157,6 +157,12 @@
   }
 }
 
+@keyframes trophy-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-8px) rotate(-2deg); }
+  75% { transform: translateY(-8px) rotate(2deg); }
+}
+
 @utility animate-slot-roll {
   animation: slot-roll linear infinite;
 }
@@ -177,6 +183,7 @@
   animation: twinkle 3s ease-in-out infinite;
 }
 
-@utility animate-card-hover-glow {
-  animation: card-hover-glow 2s ease-in-out;
+@utility animate-trophy-bounce {
+  animation: trophy-bounce 2s ease-in-out infinite;
 }
+

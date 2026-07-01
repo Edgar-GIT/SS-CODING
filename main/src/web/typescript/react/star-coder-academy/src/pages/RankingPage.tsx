@@ -95,7 +95,7 @@ export function RankingPage() {
                           <Sparkles className="absolute -right-8 top-5 h-5 w-5 text-yellow-300/70" />
                         </>
                       ) : null}
-                      <Trophy className={`${layout.trophy} ${entry.trophyClassName}`} />
+                      <Trophy className={`${layout.trophy} ${entry.trophyClassName} ${isChampion ? "animate-trophy-bounce" : ""}`} />
                     </div>
 
                     <div className="relative z-10">
