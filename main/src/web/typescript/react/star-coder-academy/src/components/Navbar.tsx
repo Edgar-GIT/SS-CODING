@@ -36,11 +36,11 @@ export function Navbar() {
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/70 border-b border-border/60">
       <nav className="mx-auto max-w-7xl px-6 h-14 flex items-center justify-between">
         <Link to="/" className="group shrink-0 select-none">
-          <span className="font-display text-2xl font-bold tracking-tight inline-flex items-baseline gap-2">
+          <span className="font-display text-2xl font-bold inline-flex items-baseline gap-2">
             <span className="text-gradient-cosmic animate-brand-shimmer drop-shadow-[0_0_12px_oklch(0.55_0.25_285_/_0.5)]">
               SS
             </span>
-            <span className="text-foreground transition-all duration-300 group-hover:tracking-widest group-hover:text-stardust">
+            <span className="text-foreground transition-colors duration-300 group-hover:text-stardust">
               CODING
             </span>
           </span>
