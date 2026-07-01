@@ -18,7 +18,7 @@ export const guides: Guide[] = [
   {
     id: "cpp",
     name: "C++",
-    chapters: 42,
+    chapters: 50,
     status: "Coming Soon",
     logo: cppLogo,
     aliases: ["cpp", "c plus plus"],
@@ -27,7 +27,7 @@ export const guides: Guide[] = [
   {
     id: "go",
     name: "Go",
-    chapters: 56,
+    chapters: 50,
     status: "Coming Soon",
     logo: goLogo,
     aliases: ["golang"],
@@ -37,19 +37,19 @@ export const guides: Guide[] = [
   {
     id: "typescript",
     name: "TypeScript",
-    chapters: 48,
+    chapters: 50,
     status: "Coming Soon",
     logo: typescriptLogo,
     aliases: ["ts"],
-    iconClassName: "bg-gradient-to-b from-orange-500 to-yellow-300"
+    iconClassName: "bg-[conic-gradient(at_top,_#1e293b,_#e2e8f0,_#1e293b)]"
   },
   {
     id: "rust",
     name: "Rust",
-    chapters: 38,
+    chapters: 50,
     status: "Coming Soon",
     logo: rustLogo,
     aliases: ["rs"],
-    iconClassName: "from-rose-500 to-pink-600",
+    iconClassName: "bg-[radial-gradient(ellipse_at_bottom,_#500724,_#fb7185)]",
   },
 ];
