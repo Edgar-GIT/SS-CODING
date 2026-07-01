@@ -37,22 +37,27 @@ export function GuidesPage() {
           }}
         />
 
-        <section className="relative mx-auto max-w-7xl px-6 pt-7 pb-12 md:pt-10 md:pb-16">
+        <section className="relative mx-auto max-w-7xl px-6 pt-5 pb-10 md:pt-8 md:pb-14">
           <div className="max-w-5xl">
-            <h1 className="font-display text-5xl font-bold leading-none tracking-normal text-foreground md:text-6xl lg:text-[64px]">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border/60 bg-secondary/40 backdrop-blur text-xs font-medium text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse-glow" />
+              Knowledge constellations
+            </div>
+
+            <h1 className="mt-6 font-display text-4xl font-bold leading-tight tracking-normal text-foreground md:text-5xl lg:text-6xl">
               Pick a language.{" "}
               <span className="whitespace-nowrap text-[oklch(0.64_0.24_280)]">Master it</span>
               <br />
               <span className="text-[oklch(0.72_0.2_235)]">deeply</span>.
             </h1>
 
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground md:text-xl">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg md:leading-8">
               Each guide is a full curriculum - syntax, idioms, ecosystem, performance and design
               patterns - written to take you from zero to elite.
             </p>
           </div>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <div className="min-w-0 flex-1">
               <label className="sr-only" htmlFor="guide-search">
                 Search programming language
@@ -83,11 +88,11 @@ export function GuidesPage() {
             {filteredGuides.map((guide) => (
               <article
                 key={guide.id}
-                className="group min-h-[182px] rounded-lg border border-border/60 bg-card/70 p-6 shadow-[0_22px_60px_oklch(0.06_0.03_260_/_0.22)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-accent/60 hover:bg-card/90"
+                className="group min-h-45.5 rounded-lg border border-border/60 bg-card/70 p-6 shadow-[0_22px_60px_oklch(0.06_0.03_260/0.22)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-accent/60 hover:bg-card/90"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div
-                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${guide.iconClassName} shadow-[0_14px_30px_oklch(0.12_0.04_260_/_0.32)]`}
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-linear-to-br ${guide.iconClassName} shadow-[0_14px_30px_oklch(0.12_0.04_260/0.32)]`}
                   >
                     <img
                       src={guide.logo}
