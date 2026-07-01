@@ -146,6 +146,17 @@
   50% { filter: brightness(1.2) drop-shadow(0 0 16px oklch(0.7 0.22 240 / 0.7)); }
 }
 
+@keyframes card-hover-glow {
+  0%, 100% { 
+    box-shadow: 0 28px 80px oklch(0.55 0.25 285 / 0.35);
+    background-color: oklch(0.17 0.05 270 / 0.9);
+  }
+  50% { 
+    box-shadow: 0 30px 100px oklch(0.55 0.25 285 / 0.5);
+    background-color: oklch(0.17 0.05 270 / 1);
+  }
+}
+
 @utility animate-slot-roll {
   animation: slot-roll linear infinite;
 }
@@ -164,4 +175,8 @@
 
 @utility animate-twinkle {
   animation: twinkle 3s ease-in-out infinite;
+}
+
+@utility animate-card-hover-glow {
+  animation: card-hover-glow 2s ease-in-out;
 }
