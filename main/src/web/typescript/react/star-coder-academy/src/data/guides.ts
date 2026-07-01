@@ -31,7 +31,7 @@ export const guides: Guide[] = [
     status: "Coming Soon",
     logo: goLogo,
     aliases: ["golang"],
-    iconClassName: "from-slate-50 to-sky-100",
+    iconClassName: "bg-slate-900 to-sky-600",
     logoClassName: "h-11 w-11",
   },
   {
