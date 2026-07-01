@@ -22,7 +22,7 @@ export const guides: Guide[] = [
     status: "Coming Soon",
     logo: cppLogo,
     aliases: ["cpp", "c plus plus"],
-    iconClassName: "from-cyan-400 to-blue-600",
+    iconClassName: "bg-gradient-to-b from-gray-700 via-gray-900 to-black",
   },
   {
     id: "go",
@@ -41,7 +41,7 @@ export const guides: Guide[] = [
     status: "Coming Soon",
     logo: typescriptLogo,
     aliases: ["ts"],
-    iconClassName: "from-blue-400 to-sky-600",
+    iconClassName: "bg-gradient-to-b from-orange-500 to-yellow-300"
   },
   {
     id: "rust",
