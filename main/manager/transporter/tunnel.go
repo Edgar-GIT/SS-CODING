@@ -57,18 +57,25 @@ func Start(port int) (string, error) {
 		return "", fmt.Errorf("ngrok not found — install from https://ngrok.com/download")
 	}
 
-	cmd := exec.Command("ngrok", "http", fmt.Sprint(port), "--log=stdout")
+	proxyPort, err := StartLoggingProxy(port)
+	if err != nil {
+		return "", err
+	}
+
+	cmd := exec.Command("ngrok", "http", fmt.Sprint(proxyPort), "--log=stdout")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	utils.PrepareProcessGroup(cmd)
 
 	if err := cmd.Start(); err != nil {
+		StopLoggingProxy()
 		return "", err
 	}
 
 	url, err := waitForPublicURL(20 * time.Second)
 	if err != nil {
 		_ = utils.KillProcessTree(cmd)
+		StopLoggingProxy()
 		return "", err
 	}
 
@@ -83,6 +90,7 @@ func Start(port int) (string, error) {
 		if ngrokCmd == cmd {
 			ngrokCmd = nil
 			publicURL = ""
+			StopLoggingProxy()
 		}
 		mu.Unlock()
 	}()
@@ -109,6 +117,7 @@ func Stop() error {
 		publicURL = ""
 	}
 	mu.Unlock()
+	StopLoggingProxy()
 
 	return nil
 }
