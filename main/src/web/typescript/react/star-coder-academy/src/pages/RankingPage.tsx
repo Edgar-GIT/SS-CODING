@@ -60,7 +60,12 @@ export function RankingPage() {
 
         <section className="relative mx-auto max-w-7xl px-6 pt-5 pb-10 md:pt-8 md:pb-14">
           <div className="max-w-4xl">
-            <h1 className="font-display text-4xl font-bold leading-tight tracking-normal text-foreground md:text-5xl lg:text-6xl">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border/60 bg-secondary/40 backdrop-blur text-xs font-medium text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse-glow" />
+              Hall of fame
+            </div>
+
+            <h1 className="mt-6 font-display text-4xl font-bold leading-tight tracking-normal text-foreground md:text-5xl lg:text-6xl">
               The <span className="text-[oklch(0.64_0.24_280)]">galactic</span>{" "}
               <span className="text-[oklch(0.72_0.2_235)]">leaderboard</span>.
             </h1>

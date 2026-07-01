@@ -30,7 +30,12 @@ export function AboutPage() {
 
         <section className="relative mx-auto max-w-7xl px-6 pt-5 pb-10 md:pt-8 md:pb-14">
           <div className="max-w-5xl">
-            <h1 className="font-display text-4xl font-bold leading-tight tracking-normal text-foreground md:text-5xl lg:text-6xl">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border/60 bg-secondary/40 backdrop-blur text-xs font-medium text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse-glow" />
+              About the creator
+            </div>
+
+            <h1 className="mt-6 font-display text-4xl font-bold leading-tight tracking-normal text-foreground md:text-5xl lg:text-6xl">
               One dev. <span className="text-[oklch(0.64_0.24_280)]">Decades of obsession.</span>
               <br />
               Now yours to inherit.
