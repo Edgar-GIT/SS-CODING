@@ -7,6 +7,7 @@ export type Concept = {
   description: string;
   status: string;
   icon: LucideIcon;
+  searchTerms: string[];
 };
 
 export const concepts: Concept[] = [
@@ -16,6 +17,7 @@ export const concepts: Concept[] = [
     description: "Think in self-referential structures.",
     status: "Coming Soon",
     icon: Atom,
+    searchTerms: ["functions", "stack", "self reference"],
   },
   {
     id: "abstraction",
@@ -23,6 +25,7 @@ export const concepts: Concept[] = [
     description: "Hide the noise, expose the meaning.",
     status: "Coming Soon",
     icon: Layers,
+    searchTerms: ["interfaces", "architecture", "models"],
   },
   {
     id: "control-flow",
@@ -30,6 +33,7 @@ export const concepts: Concept[] = [
     description: "Branches, loops and pattern matching.",
     status: "Coming Soon",
     icon: GitBranch,
+    searchTerms: ["branches", "loops", "patterns"],
   },
   {
     id: "concurrency",
@@ -37,5 +41,6 @@ export const concepts: Concept[] = [
     description: "Threads, async, parallelism - done right.",
     status: "Coming Soon",
     icon: Cpu,
+    searchTerms: ["threads", "async", "parallelism"],
   },
 ];

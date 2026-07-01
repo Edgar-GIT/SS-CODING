@@ -1,7 +1,33 @@
+import { Filter, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import { Navbar } from "@/components/Navbar";
 import { concepts } from "@/data/concepts";
 
+function normalize(value: string) {
+  return value.toLowerCase().trim();
+}
+
 export function ConceptsPage() {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = normalize(query);
+
+  const filteredConcepts = useMemo(() => {
+    if (!normalizedQuery) {
+      return concepts;
+    }
+
+    return concepts.filter((concept) => {
+      const searchableValues = [
+        concept.title,
+        concept.description,
+        concept.id,
+        ...concept.searchTerms,
+      ].map(normalize);
+      return searchableValues.some((value) => value.includes(normalizedQuery));
+    });
+  }, [normalizedQuery]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -31,8 +57,35 @@ export function ConceptsPage() {
             </p>
           </div>
 
+          <div className="mt-12 flex flex-col gap-3 sm:flex-row">
+            <div className="min-w-0 flex-1">
+              <label className="sr-only" htmlFor="concept-search">
+                Search concepts
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="concept-search"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search concepts by name, language, topic..."
+                  className="h-12 w-full rounded-lg border border-border/70 bg-card/70 pl-12 pr-4 text-sm text-foreground outline-none backdrop-blur transition-colors placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg border border-border/70 bg-card/70 px-5 text-sm font-semibold text-foreground backdrop-blur transition-colors hover:border-accent/60 hover:bg-card/90"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+            </button>
+          </div>
+
           <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-            {concepts.map((concept) => (
+            {filteredConcepts.map((concept) => (
               <article
                 key={concept.id}
                 className="group min-h-[192px] rounded-lg border border-border/60 bg-card/70 p-6 shadow-[0_22px_60px_oklch(0.06_0.03_260_/_0.22)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-accent/60 hover:bg-card/90"
@@ -57,6 +110,12 @@ export function ConceptsPage() {
               </article>
             ))}
           </div>
+
+          {filteredConcepts.length === 0 ? (
+            <div className="mt-8 rounded-lg border border-border/60 bg-card/70 px-6 py-8 text-center text-muted-foreground backdrop-blur">
+              No concepts match "{query}".
+            </div>
+          ) : null}
         </section>
       </main>
     </div>
