@@ -3,13 +3,17 @@ package transporter
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"ss-coding/utils"
+
+	"github.com/joho/godotenv"
 )
 
 const ngrokAPI = "http://127.0.0.1:4040/api/tunnels"
@@ -62,6 +66,11 @@ func Start(port int) (string, error) {
 		return "", err
 	}
 
+	if err := loadDotEnv(); err != nil {
+		StopLoggingProxy()
+		return "", err
+	}
+
 	if err := ensureNgrokAuthToken(); err != nil {
 		StopLoggingProxy()
 		return "", err
@@ -72,8 +81,8 @@ func Start(port int) (string, error) {
 	if token != "" {
 		cmd.Env = append(os.Environ(), "NGROK_AUTHTOKEN="+token, "NGROK_AUTH_TOKEN="+token)
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
 	utils.PrepareProcessGroup(cmd)
 
 	if err := cmd.Start(); err != nil {
@@ -144,6 +153,25 @@ func waitForPublicURL(timeout time.Duration) (string, error) {
 	}
 
 	return "", fmt.Errorf("ngrok tunnel did not become ready in time")
+}
+
+func loadDotEnv() error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	for {
+		envPath := filepath.Join(dir, ".env")
+		if _, err := os.Stat(envPath); err == nil {
+			return godotenv.Load(envPath)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return nil
 }
 
 func ngrokAuthToken() string {
