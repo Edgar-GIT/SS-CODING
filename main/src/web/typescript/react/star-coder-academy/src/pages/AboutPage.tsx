@@ -6,7 +6,7 @@ import { feats, values } from "@/data/about";
 function AboutCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <article
-      className={`rounded-lg border border-border/60 bg-card/70 p-5 shadow-[0_22px_60px_oklch(0.06_0.03_260_/_0.22)] backdrop-blur ${className}`}
+      className={`rounded-lg border border-border/60 bg-card/70 p-7 shadow-[0_22px_60px_oklch(0.06_0.03_260_/_0.22)] backdrop-blur md:p-8 ${className}`}
     >
       {children}
     </article>
@@ -30,22 +30,27 @@ export function AboutPage() {
 
         <section className="relative mx-auto max-w-7xl px-6 pt-7 pb-12 md:pt-10 md:pb-16">
           <div className="max-w-5xl">
-            <h1 className="font-display text-5xl font-bold leading-none tracking-normal text-foreground md:text-6xl">
+            <h1 className="font-display text-5xl font-bold leading-none tracking-normal text-foreground md:text-6xl lg:text-7xl">
               One dev. <span className="text-[oklch(0.64_0.24_280)]">Decades of obsession.</span>
               <br />
               Now yours to inherit.
             </h1>
 
-            <p className="mt-6 max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
+            <p className="mt-7 max-w-4xl text-lg leading-8 text-muted-foreground">
               SS Coding is a solo project — built, taught and maintained by a single programmer who
               has spent a lifetime mastering every corner of computing, and now wants to hand that
               journey to you.
             </p>
           </div>
 
-          <AboutCard className="mt-8 overflow-hidden p-7 md:p-9">
-            <div className="max-w-4xl space-y-5 text-sm leading-7 text-muted-foreground">
-              <h2 className="font-display text-2xl font-bold text-foreground">My story.</h2>
+          <article className="relative mt-10 overflow-hidden rounded-lg border border-border/60 bg-card/70 p-10 shadow-[0_22px_60px_oklch(0.06_0.03_260_/_0.22)] backdrop-blur md:p-14">
+            <div className="absolute inset-0 starfield opacity-30 animate-twinkle" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_0%,oklch(0.42_0.21_285_/_0.24),transparent_42%)]" />
+
+            <div className="relative max-w-5xl space-y-6 text-lg leading-9 text-muted-foreground md:text-xl md:leading-10">
+              <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
+                My story.
+              </h2>
               <p>
                 I wrote my first line of C at{" "}
                 <span className="font-semibold text-foreground">11 years old</span> — and from that
@@ -84,43 +89,45 @@ export function AboutPage() {
                 guide.
               </p>
             </div>
-          </AboutCard>
+          </article>
 
-          <div className="mt-10">
-            <h2 className="font-display text-2xl font-bold tracking-normal text-foreground md:text-3xl">
+          <div className="mt-16">
+            <h2 className="font-display text-4xl font-bold tracking-normal text-foreground md:text-5xl">
               A few <span className="text-[oklch(0.72_0.2_235)]">feats</span>.
             </h2>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
               {feats.map((feat) => (
-                <AboutCard key={feat.title}>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-sky-500 shadow-[0_14px_30px_oklch(0.12_0.04_260_/_0.32)]">
-                    <feat.icon className="h-[18px] w-[18px] text-[oklch(0.1_0.03_260)]" />
+                <AboutCard key={feat.title} className="min-h-[210px]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-sky-500 shadow-[0_14px_30px_oklch(0.12_0.04_260_/_0.32)]">
+                    <feat.icon className="h-6 w-6 text-[oklch(0.1_0.03_260)]" />
                   </div>
-                  <h3 className="mt-4 font-display text-base font-bold text-foreground">
+                  <h3 className="mt-6 font-display text-xl font-bold text-foreground">
                     {feat.title}
                   </h3>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground">{feat.description}</p>
+                  <p className="mt-3 text-base leading-7 text-muted-foreground">
+                    {feat.description}
+                  </p>
                 </AboutCard>
               ))}
             </div>
           </div>
 
-          <div className="mt-10">
-            <h2 className="font-display text-2xl font-bold tracking-normal text-foreground md:text-3xl">
+          <div className="mt-16">
+            <h2 className="font-display text-4xl font-bold tracking-normal text-foreground md:text-5xl">
               What drives <span className="text-[oklch(0.72_0.2_235)]">this platform</span>.
             </h2>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {values.map((value) => (
-                <AboutCard key={value.title}>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-sky-500 shadow-[0_14px_30px_oklch(0.12_0.04_260_/_0.32)]">
-                    <value.icon className="h-[18px] w-[18px] text-[oklch(0.1_0.03_260)]" />
+                <AboutCard key={value.title} className="min-h-[190px]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-sky-500 shadow-[0_14px_30px_oklch(0.12_0.04_260_/_0.32)]">
+                    <value.icon className="h-6 w-6 text-[oklch(0.1_0.03_260)]" />
                   </div>
-                  <h3 className="mt-4 font-display text-base font-bold text-foreground">
+                  <h3 className="mt-6 font-display text-xl font-bold text-foreground">
                     {value.title}
                   </h3>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
                     {value.description}
                   </p>
                 </AboutCard>

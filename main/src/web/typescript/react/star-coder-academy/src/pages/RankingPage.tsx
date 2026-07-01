@@ -10,30 +10,36 @@ function formatNumber(value: number) {
 function getPodiumLayout(rank: number) {
   if (rank === 1) {
     return {
-      wrapper: "order-1 md:order-2 md:-mt-10",
-      platform: "h-36 md:h-40",
-      avatar: "h-20 w-20 text-2xl",
-      trophy: "h-24 w-24",
-      rankText: "text-5xl",
+      wrapper: "order-1 md:order-2 md:-mt-6",
+      visual: "h-48",
+      platform: "h-44",
+      platformWidth: "max-w-[320px]",
+      avatar: "h-[88px] w-[88px] text-2xl",
+      trophy: "h-28 w-28",
+      rankText: "text-6xl",
     };
   }
 
   if (rank === 2) {
     return {
-      wrapper: "order-2 md:order-1 md:mt-12",
-      platform: "h-28 md:h-32",
-      avatar: "h-14 w-14 text-base",
-      trophy: "h-12 w-12",
-      rankText: "text-4xl",
+      wrapper: "order-2 md:order-1 md:mt-24",
+      visual: "h-32",
+      platform: "h-36",
+      platformWidth: "max-w-[320px]",
+      avatar: "h-16 w-16 text-base",
+      trophy: "h-14 w-14",
+      rankText: "text-5xl",
     };
   }
 
   return {
-    wrapper: "order-3 md:mt-16",
-    platform: "h-24 md:h-28",
-    avatar: "h-14 w-14 text-base",
-    trophy: "h-12 w-12",
-    rankText: "text-4xl",
+    wrapper: "order-3 md:mt-28",
+    visual: "h-32",
+    platform: "h-32",
+    platformWidth: "max-w-[320px]",
+    avatar: "h-16 w-16 text-base",
+    trophy: "h-14 w-14",
+    rankText: "text-5xl",
   };
 }
 
@@ -54,7 +60,7 @@ export function RankingPage() {
 
         <section className="relative mx-auto max-w-7xl px-6 pt-7 pb-12 md:pt-10 md:pb-16">
           <div className="max-w-4xl">
-            <h1 className="font-display text-5xl font-bold leading-none tracking-normal text-foreground md:text-6xl">
+            <h1 className="font-display text-5xl font-bold leading-none tracking-normal text-foreground md:text-6xl lg:text-7xl">
               The <span className="text-[oklch(0.64_0.24_280)]">galactic</span>{" "}
               <span className="text-[oklch(0.72_0.2_235)]">leaderboard</span>.
             </h1>
@@ -65,9 +71,9 @@ export function RankingPage() {
             </p>
           </div>
 
-          <div className="relative mx-auto mt-12 max-w-5xl">
-            <div className="absolute left-1/2 top-4 hidden h-64 w-64 -translate-x-1/2 rounded-full bg-yellow-400/20 blur-3xl md:block" />
-            <div className="grid gap-6 md:grid-cols-3 md:items-end">
+          <div className="relative mx-auto mt-14 max-w-6xl">
+            <div className="absolute left-1/2 top-10 hidden h-72 w-72 -translate-x-1/2 rounded-full bg-yellow-400/20 blur-3xl md:block" />
+            <div className="grid gap-8 md:grid-cols-3 md:items-end">
               {podium.map((entry) => {
                 const layout = getPodiumLayout(entry.rank);
                 const isChampion = entry.rank === 1;
@@ -77,7 +83,7 @@ export function RankingPage() {
                     key={entry.rank}
                     className={`relative flex flex-col items-center ${layout.wrapper}`}
                   >
-                    <div className="relative mb-2 flex h-28 items-end justify-center">
+                    <div className={`relative mb-2 flex ${layout.visual} items-end justify-center`}>
                       {isChampion ? (
                         <>
                           <Sparkles className="absolute -left-8 top-2 h-5 w-5 text-yellow-300/70" />
@@ -99,16 +105,16 @@ export function RankingPage() {
                     </div>
 
                     <div
-                      className={`mt-4 flex w-full max-w-72 flex-col items-center justify-end rounded-t-lg border border-border/60 bg-card/70 px-6 pb-7 text-center shadow-[0_24px_70px_oklch(0.06_0.03_260_/_0.28)] backdrop-blur ${layout.platform}`}
+                      className={`mt-3 flex w-full ${layout.platformWidth} flex-col items-center rounded-t-lg border border-border/60 bg-card/70 px-7 py-7 text-center shadow-[0_24px_70px_oklch(0.06_0.03_260_/_0.28)] backdrop-blur ${layout.platform}`}
                     >
                       <div
                         className={`font-display ${layout.rankText} font-bold leading-none text-[oklch(0.72_0.2_235)]`}
                       >
                         #{entry.rank}
                       </div>
-                      <h2 className="mt-3 text-base font-bold text-foreground">{entry.username}</h2>
-                      <p className="mt-1 text-xs text-muted-foreground">{entry.title}</p>
-                      <div className="mt-3 flex items-center justify-center gap-5 text-[10px] font-semibold uppercase text-accent">
+                      <h2 className="mt-4 text-lg font-bold text-foreground">{entry.username}</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">{entry.title}</p>
+                      <div className="mt-5 flex items-center justify-center gap-6 text-xs font-semibold uppercase text-accent">
                         <span className="inline-flex items-center gap-1">
                           <Flame className="h-3.5 w-3.5" />
                           {formatNumber(entry.xp)} XP
@@ -125,8 +131,8 @@ export function RankingPage() {
             </div>
           </div>
 
-          <div className="mt-12 overflow-hidden rounded-lg border border-border/60 bg-card/70 backdrop-blur">
-            <div className="grid grid-cols-[80px_1.5fr_1fr_1fr] border-b border-border/50 px-5 py-4 text-[10px] font-semibold uppercase text-muted-foreground md:grid-cols-[120px_2fr_1fr_1fr]">
+          <div className="mt-16 overflow-hidden rounded-lg border border-border/60 bg-card/70 backdrop-blur">
+            <div className="grid grid-cols-[80px_1.5fr_1fr_1fr] border-b border-border/50 px-5 py-5 text-xs font-semibold uppercase text-muted-foreground md:grid-cols-[120px_2fr_1fr_1fr]">
               <span>Rank</span>
               <span>Coder</span>
               <span>Tier</span>
@@ -136,7 +142,7 @@ export function RankingPage() {
             {leaderboardRows.map((row) => (
               <div
                 key={row.rank}
-                className="grid grid-cols-[80px_1.5fr_1fr_1fr] items-center border-b border-border/30 px-5 py-4 text-sm last:border-b-0 md:grid-cols-[120px_2fr_1fr_1fr]"
+                className="grid grid-cols-[80px_1.5fr_1fr_1fr] items-center border-b border-border/30 px-5 py-5 text-base last:border-b-0 md:grid-cols-[120px_2fr_1fr_1fr]"
               >
                 <span className="text-muted-foreground">#{row.rank}</span>
                 <span className="flex min-w-0 items-center gap-3 font-semibold text-foreground">
