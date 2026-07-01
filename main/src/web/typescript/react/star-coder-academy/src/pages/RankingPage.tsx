@@ -10,36 +10,36 @@ function formatNumber(value: number) {
 function getPodiumLayout(rank: number) {
   if (rank === 1) {
     return {
-      wrapper: "order-1 md:order-2 md:-mt-6",
-      visual: "h-48",
-      platform: "h-44",
-      platformWidth: "max-w-[320px]",
-      avatar: "h-[88px] w-[88px] text-2xl",
-      trophy: "h-28 w-28",
-      rankText: "text-6xl",
+      wrapper: "order-1 md:order-2 md:-mt-4",
+      visual: "h-40",
+      platform: "h-40",
+      platformWidth: "max-w-xs",
+      avatar: "h-20 w-20 text-xl",
+      trophy: "h-24 w-24",
+      rankText: "text-5xl",
     };
   }
 
   if (rank === 2) {
     return {
-      wrapper: "order-2 md:order-1 md:mt-24",
-      visual: "h-32",
-      platform: "h-36",
-      platformWidth: "max-w-[320px]",
-      avatar: "h-16 w-16 text-base",
-      trophy: "h-14 w-14",
-      rankText: "text-5xl",
+      wrapper: "order-2 md:order-1 md:mt-20",
+      visual: "h-28",
+      platform: "h-32",
+      platformWidth: "max-w-xs",
+      avatar: "h-14 w-14 text-sm",
+      trophy: "h-12 w-12",
+      rankText: "text-4xl",
     };
   }
 
   return {
-    wrapper: "order-3 md:mt-28",
-    visual: "h-32",
+    wrapper: "order-3 md:mt-24",
+    visual: "h-28",
     platform: "h-32",
-    platformWidth: "max-w-[320px]",
-    avatar: "h-16 w-16 text-base",
-    trophy: "h-14 w-14",
-    rankText: "text-5xl",
+    platformWidth: "max-w-xs",
+    avatar: "h-14 w-14 text-sm",
+    trophy: "h-12 w-12",
+    rankText: "text-4xl",
   };
 }
 
@@ -58,14 +58,14 @@ export function RankingPage() {
           }}
         />
 
-        <section className="relative mx-auto max-w-7xl px-6 pt-7 pb-12 md:pt-10 md:pb-16">
+        <section className="relative mx-auto max-w-7xl px-6 pt-5 pb-10 md:pt-8 md:pb-14">
           <div className="max-w-4xl">
-            <h1 className="font-display text-5xl font-bold leading-none tracking-normal text-foreground md:text-6xl lg:text-7xl">
+            <h1 className="font-display text-4xl font-bold leading-tight tracking-normal text-foreground md:text-5xl lg:text-6xl">
               The <span className="text-[oklch(0.64_0.24_280)]">galactic</span>{" "}
               <span className="text-[oklch(0.72_0.2_235)]">leaderboard</span>.
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
+            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg md:leading-8">
               Solve exercises, ship projects and win quizzes to earn XP. The top of the galaxy is
               reserved for the relentless.
             </p>
@@ -95,32 +95,32 @@ export function RankingPage() {
 
                     <div className="relative z-10">
                       <div
-                        className={`flex ${layout.avatar} items-center justify-center rounded-full bg-gradient-to-br ${entry.accentClassName} font-display font-bold shadow-[0_0_50px_oklch(0.69_0.19_85_/_0.35)] ring-2 ring-background`}
+                        className={`flex ${layout.avatar} items-center justify-center rounded-full bg-linear-to-br ${entry.accentClassName} font-display font-bold shadow-[0_0_50px_oklch(0.69_0.19_85/0.35)] ring-2 ring-background`}
                       >
                         {entry.initials}
                       </div>
-                      <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-orange-500 text-xs font-bold text-slate-950 ring-2 ring-background">
+                      <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-linear-to-br from-yellow-300 to-orange-500 text-xs font-bold text-slate-950 ring-2 ring-background">
                         {entry.rank}
                       </span>
                     </div>
 
                     <div
-                      className={`mt-3 flex w-full ${layout.platformWidth} flex-col items-center rounded-t-lg border border-border/60 bg-card/70 px-7 py-7 text-center shadow-[0_24px_70px_oklch(0.06_0.03_260_/_0.28)] backdrop-blur ${layout.platform}`}
+                      className={`mt-3 flex w-full ${layout.platformWidth} flex-col items-center rounded-t-lg border border-border/60 bg-card/70 px-6 py-5 text-center shadow-[0_24px_70px_oklch(0.06_0.03_260/0.28)] backdrop-blur transition-all duration-300 hover:border-accent/80 hover:bg-card/90 hover:shadow-[0_28px_80px_oklch(0.55_0.25_285/0.35)] hover:scale-105 ${layout.platform}`}
                     >
                       <div
                         className={`font-display ${layout.rankText} font-bold leading-none text-[oklch(0.72_0.2_235)]`}
                       >
                         #{entry.rank}
                       </div>
-                      <h2 className="mt-4 text-lg font-bold text-foreground">{entry.username}</h2>
-                      <p className="mt-2 text-sm text-muted-foreground">{entry.title}</p>
-                      <div className="mt-5 flex items-center justify-center gap-6 text-xs font-semibold uppercase text-accent">
+                      <h2 className="mt-3 text-base font-bold text-foreground">{entry.username}</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">{entry.title}</p>
+                      <div className="mt-4 flex items-center justify-center gap-4 text-xs font-semibold uppercase text-accent">
                         <span className="inline-flex items-center gap-1">
-                          <Flame className="h-3.5 w-3.5" />
+                          <Flame className="h-3 w-3" />
                           {formatNumber(entry.xp)} XP
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5" />
+                          <Star className="h-3 w-3" />
                           {formatNumber(entry.solved)} solved
                         </span>
                       </div>
@@ -131,7 +131,7 @@ export function RankingPage() {
             </div>
           </div>
 
-          <div className="mt-16 overflow-hidden rounded-lg border border-border/60 bg-card/70 backdrop-blur">
+          <div className="mt-12 overflow-hidden rounded-lg border border-border/60 bg-card/70 backdrop-blur">
             <div className="grid grid-cols-[80px_1.5fr_1fr_1fr] border-b border-border/50 px-5 py-5 text-xs font-semibold uppercase text-muted-foreground md:grid-cols-[120px_2fr_1fr_1fr]">
               <span>Rank</span>
               <span>Coder</span>
@@ -142,11 +142,11 @@ export function RankingPage() {
             {leaderboardRows.map((row) => (
               <div
                 key={row.rank}
-                className="grid grid-cols-[80px_1.5fr_1fr_1fr] items-center border-b border-border/30 px-5 py-5 text-base last:border-b-0 md:grid-cols-[120px_2fr_1fr_1fr]"
+                className="grid grid-cols-[80px_1.5fr_1fr_1fr] items-center border-b border-border/30 px-5 py-4 text-base transition-all duration-200 hover:bg-card/50 last:border-b-0 md:grid-cols-[120px_2fr_1fr_1fr]"
               >
                 <span className="text-muted-foreground">#{row.rank}</span>
                 <span className="flex min-w-0 items-center gap-3 font-semibold text-foreground">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-sky-500 text-slate-950">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-violet-500 to-sky-500 text-slate-950">
                     <Star className="h-3.5 w-3.5" />
                   </span>
                   <span className="truncate">{row.username}</span>
